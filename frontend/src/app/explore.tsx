@@ -1,396 +1,166 @@
-import React, { useState, useEffect } from 'react';
-import {
-  StyleSheet,
-  ScrollView,
-  Pressable,
-  View,
-  Alert,
-  Platform,
-} from 'react-native';
+import { useEffect, useState } from 'react';
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { BottomTabInset, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { useLocalStories, Story } from '@/hooks/use-local-stories';
+import { Story, useLocalStories } from '@/hooks/use-local-stories';
 
 export default function ExploreScreen() {
-  const safeAreaInsets = useSafeAreaInsets();
   const theme = useTheme();
-  
-  const insets = {
-    ...safeAreaInsets,
-    bottom: safeAreaInsets.bottom + BottomTabInset + Spacing.three,
-  };
-
-  const { stories, loading, deleteStory, clearAllStories, refreshStories } = useLocalStories();
+  const router = useRouter();
+  const safeAreaInsets = useSafeAreaInsets();
+  const { storyId } = useLocalSearchParams<{ storyId?: string }>();
+  const { stories, loading, deleteStory, clearAllStories, refreshStories, toggleFavorite } = useLocalStories();
   const [activeStory, setActiveStory] = useState<Story | null>(null);
+  const [showFavorites, setShowFavorites] = useState(false);
 
-  // Reload stories whenever this screen is active or refreshed
+  useEffect(() => { refreshStories(); }, []);
   useEffect(() => {
-    refreshStories();
-  }, [activeStory]);
+    if (storyId) setActiveStory(stories.find((story) => story.id === storyId) ?? null);
+  }, [stories, storyId]);
 
-  const handleDelete = (id: string, title: string) => {
+  const confirmDelete = (id: string, title: string) => {
+    const remove = () => { deleteStory(id); setActiveStory(null); };
     if (Platform.OS === 'web') {
-      const confirmDelete = window.confirm(`Are you sure you want to delete "${title}"?`);
-      if (confirmDelete) {
-        deleteStory(id);
-      }
+      if (window.confirm(`Delete "${title}" from your bookshelf?`)) remove();
     } else {
-      Alert.alert(
-        'Delete Story',
-        `Are you sure you want to delete "${title}"?`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Delete', style: 'destructive', onPress: () => deleteStory(id) },
-        ]
-      );
+      Alert.alert('Delete Story', `Delete "${title}" from your bookshelf?`, [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: remove },
+      ]);
     }
   };
 
-  const handleClearAll = () => {
-    const msg = 'Are you sure you want to delete all stories? This cannot be undone and respects your device privacy.';
+  const confirmClear = () => {
+    const remove = () => clearAllStories();
     if (Platform.OS === 'web') {
-      const confirmClear = window.confirm(msg);
-      if (confirmClear) {
-        clearAllStories();
-      }
+      if (window.confirm('Delete every story from your bookshelf?')) remove();
     } else {
-      Alert.alert(
-        'Clear Bookshelf',
-        msg,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Clear All', style: 'destructive', onPress: clearAllStories },
-        ]
-      );
+      Alert.alert('Clear Bookshelf', 'Delete every story from your bookshelf?', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Clear All', style: 'destructive', onPress: remove },
+      ]);
     }
   };
 
-  const formatDate = (isoString: string) => {
-    try {
-      const date = new Date(isoString);
-      return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-    } catch {
-      return '';
-    }
+  const filteredStories = showFavorites ? stories.filter((story) => story.isFavorite) : stories;
+  const bottomPadding = safeAreaInsets.bottom + BottomTabInset + 32;
+  const handleToggleFavorite = async (id: string) => {
+    const updatedStory = await toggleFavorite(id);
+    if (updatedStory && activeStory?.id === id) setActiveStory(updatedStory);
   };
 
-  const contentPlatformStyle = Platform.select({
-    android: {
-      paddingTop: insets.top,
-      paddingLeft: insets.left,
-      paddingRight: insets.right,
-      paddingBottom: insets.bottom,
-    },
-    web: {
-      paddingTop: Spacing.four,
-      paddingBottom: Spacing.six,
-    },
-  });
-
-  // Render Full Screen Reader
   if (activeStory) {
     return (
       <ThemedView style={styles.container}>
-        <ScrollView
-          style={[styles.scrollView, { backgroundColor: theme.background }]}
-          contentContainerStyle={[styles.contentContainer, contentPlatformStyle]}>
-          <View style={styles.readerWrapper}>
-            <Pressable
-              style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
-              onPress={() => setActiveStory(null)}>
-              <ThemedText style={{ fontSize: 16 }}>← Bookshelf</ThemedText>
+        <ScrollView contentContainerStyle={[styles.readerContent, { paddingBottom: bottomPadding }]} showsVerticalScrollIndicator={false}>
+          <View style={styles.readerToolbar}>
+            <Pressable onPress={() => { setActiveStory(null); router.navigate('/explore'); }} style={styles.toolButton}>
+              <ThemedText>← Back to Stories</ThemedText>
             </Pressable>
-
-            <ThemedText style={styles.readerEmoji}>{activeStory.emoji}</ThemedText>
-            <ThemedText type="subtitle" style={styles.readerTitle}>
-              {activeStory.title}
-            </ThemedText>
-            
-            <ThemedText type="small" themeColor="textSecondary" style={styles.readerMeta}>
-              For {activeStory.age} years • Goal: {activeStory.goal}
-            </ThemedText>
-
-            <View style={styles.divider} />
-            
-            <ThemedText style={styles.readerStoryText}>
-              {activeStory.story}
-            </ThemedText>
+            <View style={styles.toolbarActions}>
+              <Pressable onPress={() => handleToggleFavorite(activeStory.id)} style={styles.toolButton}>
+                <ThemedText style={styles.favoriteText}>{activeStory.isFavorite ? '♥' : '♡'}</ThemedText>
+              </Pressable>
+              <Pressable onPress={() => confirmDelete(activeStory.id, activeStory.title)} style={styles.toolButton}>
+                <ThemedText>•••</ThemedText>
+              </Pressable>
+            </View>
           </View>
+          <View style={styles.readerCover}>
+            <ThemedText style={styles.readerEmoji}>{activeStory.emoji}</ThemedText>
+            <ThemedText style={styles.coverLabel}>YOUR STORY</ThemedText>
+          </View>
+          <ThemedText style={styles.readerTitle}>{activeStory.title}</ThemedText>
+          <ThemedText themeColor="textSecondary" style={styles.readerMeta}>Ages {activeStory.age} • {activeStory.character}</ThemedText>
+          <View style={styles.divider} />
+          <ThemedText style={styles.readerStory}>{activeStory.story}</ThemedText>
+          <Pressable onPress={() => handleToggleFavorite(activeStory.id)} style={[styles.readerAction, { backgroundColor: theme.accent }]}>
+            <ThemedText themeColor="accentText">{activeStory.isFavorite ? '♥ Favorited' : '♡ Add to Favorites'}</ThemedText>
+          </Pressable>
         </ScrollView>
       </ThemedView>
     );
   }
 
-  // Render Bookshelf
   return (
-    <ScrollView
-      style={[styles.scrollView, { backgroundColor: theme.background }]}
-      contentContainerStyle={[styles.contentContainer, contentPlatformStyle]}>
-      <ThemedView style={styles.container}>
-        
-        <View style={styles.header}>
-          <ThemedText type="subtitle" style={styles.headerTitle}>My Bookshelf 📚</ThemedText>
-          <ThemedText themeColor="textSecondary" style={styles.headerSub}>
-            All stories are kept safely on your device.
-          </ThemedText>
-        </View>
-
-        {loading ? (
-          <View style={styles.centerContainer}>
-            <ThemedText>Opening library...</ThemedText>
+    <ThemedView style={styles.container}>
+      <ScrollView contentContainerStyle={[styles.pageContent, { paddingBottom: bottomPadding }]} showsVerticalScrollIndicator={false}>
+        <ThemedText style={styles.kicker}>YOUR LIBRARY</ThemedText>
+        <ThemedText style={styles.title}>Saved Stories</ThemedText>
+        <ThemedText themeColor="textSecondary" style={styles.subtitle}>All stories are kept safely on your device.</ThemedText>
+        {stories.length > 0 ? (
+          <View style={styles.filterRow}>
+            <Pressable onPress={() => setShowFavorites(false)} style={[styles.filterButton, !showFavorites && { backgroundColor: theme.accent }]}>
+              <ThemedText themeColor={!showFavorites ? 'accentText' : 'textSecondary'}>All</ThemedText>
+            </Pressable>
+            <Pressable onPress={() => setShowFavorites(true)} style={[styles.filterButton, showFavorites && { backgroundColor: theme.accent }]}>
+              <ThemedText themeColor={showFavorites ? 'accentText' : 'textSecondary'}>♥ Favorites</ThemedText>
+            </Pressable>
           </View>
-        ) : stories.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <ThemedText style={styles.emptyEmoji}>🍃</ThemedText>
-            <ThemedText type="smallBold" style={styles.emptyText}>
-              Your bookshelf is empty!
-            </ThemedText>
-            <ThemedText type="small" themeColor="textSecondary" style={styles.emptySubText}>
-              Go to the Home tab to create a customized story based on your child's day.
-            </ThemedText>
+        ) : null}
+        {loading ? <ThemedText>Opening library...</ThemedText> : stories.length === 0 ? (
+          <View style={styles.emptyState}>
+            <ThemedText style={styles.emptyEmoji}>✦</ThemedText>
+            <ThemedText style={styles.emptyTitle}>Your bookshelf is empty</ThemedText>
+            <ThemedText themeColor="textSecondary">Your first adventure is waiting.</ThemedText>
+            <Pressable onPress={() => router.navigate('/create')} style={[styles.readerAction, { backgroundColor: theme.accent }]}>
+              <ThemedText themeColor="accentText">✨ Create your first story</ThemedText>
+            </Pressable>
           </View>
+        ) : filteredStories.length === 0 ? (
+          <View style={styles.emptyState}><ThemedText style={styles.emptyEmoji}>♡</ThemedText><ThemedText style={styles.emptyTitle}>No favorites yet ♥</ThemedText></View>
         ) : (
-          <View style={{ width: '100%', gap: Spacing.four }}>
-            <View style={styles.booksGrid}>
-              {stories.map((story) => (
-                <View key={story.id} style={[styles.bookCard, { backgroundColor: theme.backgroundElement }]}>
-                  <View style={styles.cardHeader}>
-                    <ThemedText style={styles.bookEmoji}>{story.emoji}</ThemedText>
-                    <ThemedText type="code" style={styles.cardDate}>
-                      {formatDate(story.createdAt)}
-                    </ThemedText>
-                  </View>
-
-                  <ThemedText type="smallBold" style={styles.bookTitle} numberOfLines={2}>
-                    {story.title}
-                  </ThemedText>
-
-                  <ThemedText type="small" themeColor="textSecondary" style={styles.bookDesc} numberOfLines={1}>
-                    {story.character} • {story.age} yrs
-                  </ThemedText>
-
-                  <View style={styles.cardActions}>
-                    <Pressable
-                      style={({ pressed }) => [styles.cardButton, { backgroundColor: '#4D96FF' }, pressed && styles.pressed]}
-                      onPress={() => setActiveStory(story)}>
-                      <ThemedText style={styles.cardButtonText}>Read 📖</ThemedText>
-                    </Pressable>
-                    <Pressable
-                      style={({ pressed }) => [styles.cardButtonDelete, pressed && styles.pressed]}
-                      onPress={() => handleDelete(story.id, story.title)}>
-                      <ThemedText style={styles.deleteButtonText}>🗑️</ThemedText>
-                    </Pressable>
-                  </View>
-                </View>
-              ))}
-            </View>
-
-            <View style={styles.privacySection}>
-              <View style={styles.privacyDivider} />
-              <Pressable
-                style={({ pressed }) => [styles.clearAllButton, pressed && styles.pressed]}
-                onPress={handleClearAll}>
-                <ThemedText style={styles.clearAllText}>🚨 Wipe Local Library (Privacy Clear)</ThemedText>
+          <View style={styles.booksGrid}>
+            {filteredStories.map((story) => (
+              <Pressable key={story.id} onPress={() => setActiveStory(story)} style={[styles.bookCard, { backgroundColor: theme.backgroundElement }]}>
+                <View style={styles.bookCover}><ThemedText style={styles.bookEmoji}>{story.emoji}</ThemedText><ThemedText style={styles.coverLabel}>STORY</ThemedText></View>
+                <View style={styles.cardRow}><ThemedText style={styles.bookTitle} numberOfLines={2}>{story.title}</ThemedText><Pressable onPress={() => handleToggleFavorite(story.id)}><ThemedText style={styles.favoriteText}>{story.isFavorite ? '♥' : '♡'}</ThemedText></Pressable></View>
+                <ThemedText type="small" themeColor="textSecondary">{story.character} • Ages {story.age}</ThemedText>
+                <ThemedText type="small" themeColor="textSecondary">{new Date(story.createdAt).toLocaleDateString()}</ThemedText>
               </Pressable>
-            </View>
+            ))}
           </View>
         )}
-
-      </ThemedView>
-    </ScrollView>
+        {stories.length > 0 ? <Pressable onPress={confirmClear} style={styles.clearButton}><ThemedText themeColor="textSecondary">Wipe local bookshelf</ThemedText></Pressable> : null}
+      </ScrollView>
+    </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
-  scrollView: {
-    flex: 1,
-  },
-  contentContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    paddingHorizontal: Spacing.three,
-  },
-  container: {
-    maxWidth: MaxContentWidth,
-    flexGrow: 1,
-    paddingTop: Spacing.three,
-    alignItems: 'center',
-  },
-  header: {
-    alignItems: 'center',
-    gap: Spacing.half,
-    marginBottom: Spacing.four,
-  },
-  headerTitle: {
-    fontWeight: 'bold',
-  },
-  headerSub: {
-    fontSize: 14,
-  },
-  centerContainer: {
-    paddingVertical: Spacing.six,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emptyContainer: {
-    paddingVertical: Spacing.six,
-    paddingHorizontal: Spacing.four,
-    alignItems: 'center',
-    justifyContent: 'center',
-    textAlign: 'center',
-    width: '100%',
-    maxWidth: 400,
-    gap: Spacing.two,
-  },
-  emptyEmoji: {
-    fontSize: 48,
-    marginBottom: Spacing.one,
-  },
-  emptyText: {
-    fontSize: 18,
-    textAlign: 'center',
-  },
-  emptySubText: {
-    fontSize: 14,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  booksGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.three,
-    justifyContent: 'flex-start',
-    width: '100%',
-  },
-  bookCard: {
-    width: Platform.OS === 'web' ? '31%' : '47%',
-    minWidth: 150,
-    padding: Spacing.three,
-    borderRadius: 20,
-    gap: Spacing.one,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
-    elevation: 2,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.half,
-  },
-  bookEmoji: {
-    fontSize: 24,
-  },
-  cardDate: {
-    fontSize: 9,
-    opacity: 0.6,
-  },
-  bookTitle: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    height: 40,
-  },
-  bookDesc: {
-    fontSize: 11,
-    marginBottom: Spacing.half,
-  },
-  cardActions: {
-    flexDirection: 'row',
-    gap: Spacing.one,
-    marginTop: Spacing.one,
-  },
-  cardButton: {
-    flex: 1,
-    paddingVertical: 8,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cardButtonText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  cardButtonDelete: {
-    padding: 8,
-    borderRadius: 10,
-    backgroundColor: '#eaeaea',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  deleteButtonText: {
-    fontSize: 12,
-  },
-  privacySection: {
-    marginTop: Spacing.five,
-    width: '100%',
-    alignItems: 'center',
-  },
-  privacyDivider: {
-    height: 1,
-    backgroundColor: '#eaeaea',
-    width: '100%',
-    marginBottom: Spacing.three,
-  },
-  clearAllButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#FF6B6B',
-  },
-  clearAllText: {
-    color: '#FF6B6B',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  readerWrapper: {
-    width: '100%',
-    maxWidth: 600,
-    alignItems: 'center',
-    paddingBottom: Spacing.six,
-  },
-  backButton: {
-    alignSelf: 'flex-start',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    marginBottom: Spacing.three,
-  },
-  readerEmoji: {
-    fontSize: 48,
-    marginVertical: Spacing.two,
-  },
-  readerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: Spacing.one,
-  },
-  readerMeta: {
-    fontSize: 13,
-    marginBottom: Spacing.two,
-  },
-  divider: {
-    height: 4,
-    width: 60,
-    backgroundColor: '#FF6B6B',
-    borderRadius: 2,
-    marginBottom: Spacing.four,
-  },
-  readerStoryText: {
-    fontSize: 18,
-    lineHeight: 28,
-    textAlign: 'left',
-    width: '100%',
-  },
-  pressed: {
-    opacity: 0.8,
-  },
+  container: { flex: 1 },
+  pageContent: { width: '100%', maxWidth: 440, alignSelf: 'center', padding: 20, gap: 10 },
+  readerContent: { width: '100%', maxWidth: 440, alignSelf: 'center', padding: 20, alignItems: 'center' },
+  kicker: { color: '#F7D77A', fontSize: 11, fontWeight: '800', letterSpacing: 1.5 },
+  title: { fontSize: 32, lineHeight: 38, fontWeight: '800' },
+  subtitle: { fontSize: 15, lineHeight: 22, marginBottom: 14 },
+  filterRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
+  filterButton: { minHeight: 40, paddingHorizontal: 16, borderRadius: 16, justifyContent: 'center' },
+  booksGrid: { gap: 14 },
+  bookCard: { borderRadius: 22, padding: 14, gap: 6 },
+  bookCover: { height: 150, borderRadius: 18, backgroundColor: '#40365E', alignItems: 'center', justifyContent: 'center', position: 'relative' },
+  bookEmoji: { fontSize: 58 },
+  coverLabel: { position: 'absolute', bottom: 12, color: '#F7D77A', fontSize: 9, fontWeight: '800', letterSpacing: 1.2 },
+  cardRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  bookTitle: { flex: 1, fontSize: 18, lineHeight: 22, fontWeight: '800' },
+  favoriteText: { color: '#F7D77A', fontSize: 24 },
+  emptyState: { alignItems: 'center', paddingVertical: 80, gap: 8 },
+  emptyEmoji: { color: '#F7D77A', fontSize: 42 },
+  emptyTitle: { fontSize: 20, fontWeight: '800' },
+  readerToolbar: { width: '100%', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  toolbarActions: { flexDirection: 'row', gap: 8 },
+  toolButton: { minHeight: 42, paddingHorizontal: 12, borderRadius: 14, backgroundColor: '#25213D', justifyContent: 'center' },
+  readerCover: { width: '100%', height: 230, borderRadius: 26, backgroundColor: '#40365E', alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
+  readerEmoji: { fontSize: 78 },
+  readerTitle: { fontSize: 32, lineHeight: 38, fontWeight: '800', textAlign: 'center' },
+  readerMeta: { fontSize: 14, textAlign: 'center', marginTop: 6 },
+  divider: { width: 48, height: 2, backgroundColor: '#F7D77A', marginVertical: 24 },
+  readerStory: { width: '100%', fontSize: 19, lineHeight: 31 },
+  readerAction: { minHeight: 54, borderRadius: 18, paddingHorizontal: 22, justifyContent: 'center', alignItems: 'center', marginTop: 28 },
+  clearButton: { alignItems: 'center', paddingVertical: 20 },
 });

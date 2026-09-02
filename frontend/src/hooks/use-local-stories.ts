@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export interface Story {
   id: string;
@@ -11,46 +12,87 @@ export interface Story {
   age: string;
   createdAt: string;
   emoji: string;
+  isFavorite: boolean;
+  readingProgress: number;
 }
 
 const STORAGE_KEY = '@storyapp_saved_stories';
 
 // Global memory cache for native platform fallback
 let memoryStoriesCache: Story[] = [];
+const storyListeners = new Set<(stories: Story[]) => void>();
+
+const readStories = (): Story[] => {
+  try {
+    if (Platform.OS === 'web') {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      return stored ? normalizeStories(JSON.parse(stored)) : [];
+    }
+    return [...memoryStoriesCache];
+  } catch (error) {
+    console.error('Failed to load stories:', error);
+    return [];
+  }
+};
+
+async function readPersistedStories(): Promise<Story[]> {
+  if (Platform.OS === 'web') return readStories();
+  try {
+    const stored = await AsyncStorage.getItem(STORAGE_KEY);
+    const stories = stored ? normalizeStories(JSON.parse(stored)) : [];
+    memoryStoriesCache = stories;
+    return stories;
+  } catch (error) {
+    console.error('Failed to load stories:', error);
+    return [...memoryStoriesCache];
+  }
+}
+
+function normalizeStories(value: unknown): Story[] {
+  if (!Array.isArray(value)) return [];
+  return value.map((story) => ({
+    ...story,
+    isFavorite: story.isFavorite ?? false,
+    readingProgress: story.readingProgress ?? 0,
+  }));
+}
+
+async function writeStories(stories: Story[]) {
+  if (Platform.OS === 'web') {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(stories));
+  } else {
+    memoryStoriesCache = stories;
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(stories));
+  }
+  storyListeners.forEach((listener) => listener([...stories]));
+}
+
+function createStoryId() {
+  return Math.random().toString(36).substring(2, 9) + Date.now().toString();
+}
 
 export function useLocalStories() {
   const [stories, setStories] = useState<Story[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Helper to load stories from storage
-  const loadStories = () => {
-    try {
-      if (Platform.OS === 'web') {
-        const stored = localStorage.getItem(STORAGE_KEY);
-        if (stored) {
-          const parsed = JSON.parse(stored) as Story[];
-          setStories(parsed);
-          return;
-        }
-      } else {
-        // Native fallback using memory cache
-        setStories([...memoryStoriesCache]);
-        return;
-      }
-    } catch (e) {
-      console.error('Failed to load stories:', e);
-    } finally {
-      setLoading(false);
-    }
-    setStories([]);
+  const loadStories = async () => {
+    setStories(await readPersistedStories());
+    setLoading(false);
   };
 
   useEffect(() => {
-    loadStories();
+    void loadStories();
+    storyListeners.add(setStories);
+    return () => {
+      storyListeners.delete(setStories);
+    };
   }, []);
 
   // Save a new story
   const saveStory = async (newStoryData: {
+    id?: string;
+    createdAt?: string;
     title: string;
     story: string;
     event: string;
@@ -58,36 +100,43 @@ export function useLocalStories() {
     character: string;
     age: string;
     emoji: string;
-  }) => {
+    isFavorite?: boolean;
+    readingProgress?: number;
+  }): Promise<Story> => {
+    const existingStories = readStories();
+    const existingStory = newStoryData.id
+      ? existingStories.find((story) => story.id === newStoryData.id)
+      : undefined;
     const story: Story = {
       ...newStoryData,
-      id: Math.random().toString(36).substring(2, 9) + Date.now().toString(),
-      createdAt: new Date().toISOString(),
+      id: newStoryData.id ?? createStoryId(),
+      createdAt: newStoryData.createdAt ?? existingStory?.createdAt ?? new Date().toISOString(),
+      isFavorite: newStoryData.isFavorite ?? existingStory?.isFavorite ?? false,
+      readingProgress: newStoryData.readingProgress ?? existingStory?.readingProgress ?? 0,
     };
-
-    try {
-      const updated = [story, ...stories];
-      if (Platform.OS === 'web') {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-      } else {
-        memoryStoriesCache = updated;
-      }
-      setStories(updated);
-    } catch (e) {
-      console.error('Failed to save story:', e);
-    }
+    const withoutExisting = existingStories.filter((item) => item.id !== story.id);
+    await writeStories([story, ...withoutExisting]);
+    return story;
   };
+
+  const updateStory = async (updatedStory: Story) => {
+    const updated = readStories().map((story) => story.id === updatedStory.id ? updatedStory : story);
+    await writeStories(updated);
+    return updatedStory;
+  };
+
+  const toggleFavorite = async (id: string) => {
+    const story = readStories().find((item) => item.id === id);
+    if (!story) return undefined;
+    return updateStory({ ...story, isFavorite: !story.isFavorite });
+  };
+
+  const getStoryById = (id: string) => readStories().find((story) => story.id === id);
 
   // Delete a story
   const deleteStory = async (id: string) => {
     try {
-      const updated = stories.filter((s) => s.id !== id);
-      if (Platform.OS === 'web') {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-      } else {
-        memoryStoriesCache = updated;
-      }
-      setStories(updated);
+      await writeStories(readStories().filter((story) => story.id !== id));
     } catch (e) {
       console.error('Failed to delete story:', e);
     }
@@ -100,8 +149,9 @@ export function useLocalStories() {
         localStorage.removeItem(STORAGE_KEY);
       } else {
         memoryStoriesCache = [];
+        await AsyncStorage.removeItem(STORAGE_KEY);
       }
-      setStories([]);
+      storyListeners.forEach((listener) => listener([]));
     } catch (e) {
       console.error('Failed to clear stories:', e);
     }
@@ -111,6 +161,9 @@ export function useLocalStories() {
     stories,
     loading,
     saveStory,
+    updateStory,
+    toggleFavorite,
+    getStoryById,
     deleteStory,
     clearAllStories,
     refreshStories: loadStories,
