@@ -66,6 +66,117 @@ def prepare_story_prompt(event, age, goal, character, language, story_seed=None)
     )
 
 
+
+def _story_style_for_age(age):
+    """Story length and reading time based on exact child age."""
+    import re
+
+    match = re.search(r"\d+", str(age or "6"))
+    child_age = int(match.group()) if match else 6
+
+    if child_age <= 4:
+        return {
+            "age": 4,
+            "min_words": 300,
+            "max_words": 400,
+            "reading_time": "3–4 min",
+            "scene_count": 5
+        }
+
+    if child_age == 5:
+        return {
+            "age": 5,
+            "min_words": 400,
+            "max_words": 550,
+            "reading_time": "4–5 min",
+            "scene_count": 6
+        }
+
+    if child_age == 6:
+        return {
+            "age": 6,
+            "min_words": 550,
+            "max_words": 700,
+            "reading_time": "5–7 min",
+            "scene_count": 7
+        }
+
+    if child_age == 7:
+        return {
+            "age": 7,
+            "min_words": 700,
+            "max_words": 850,
+            "reading_time": "7–9 min",
+            "scene_count": 8
+        }
+
+    return {
+        "age": 8,
+        "min_words": 850,
+        "max_words": 1050,
+        "reading_time": "9–11 min",
+        "scene_count": 10
+    }
+
+
+def _cute_animal_description(animal):
+    """
+    Turn plain animal words into warmer child-friendly descriptions.
+    """
+    descriptions = {
+        "cat": [
+            "a tiny fluffy white kitten with soft pink paws",
+            "a round little ginger kitten with bright curious eyes",
+            "a silky gray kitten with a tail that curled like a question mark"
+        ],
+        "dog": [
+            "a bouncy little puppy with floppy ears",
+            "a fluffy golden puppy with a wagging tail",
+            "a tiny brown puppy with shiny button-like eyes"
+        ],
+        "rabbit": [
+            "a soft white bunny with long velvety ears",
+            "a tiny round bunny with a twitchy pink nose",
+            "a fluffy cream-colored bunny with bright little eyes"
+        ],
+        "bunny": [
+            "a soft white bunny with long velvety ears",
+            "a tiny round bunny with a twitchy pink nose",
+            "a fluffy cream-colored bunny with bright little eyes"
+        ],
+        "bear": [
+            "a big round brown bear with sleepy gentle eyes",
+            "a soft-looking bear with chocolate-brown fur",
+            "a chubby little bear with warm brown paws"
+        ],
+        "chicken": [
+            "a small golden chicken with soft feathery wings",
+            "a brave little chicken with bright yellow feathers",
+            "a tiny fluffy chicken with quick little feet"
+        ],
+        "fox": [
+            "a clever little fox with a bright orange tail",
+            "a small red fox with shiny curious eyes",
+            "a fluffy fox whose tail looked like a warm orange cloud"
+        ],
+        "dragon": [
+            "a tiny round dragon with shiny green scales",
+            "a baby dragon with soft purple wings and a warm little nose",
+            "a small blue dragon with sparkling scales and enormous curious eyes"
+        ]
+    }
+
+    import random
+    key = str(animal or "").lower().strip()
+
+    for animal_name, options in descriptions.items():
+        if animal_name in key:
+            return random.choice(options)
+
+    return animal
+
+
+
 def generate_story_locally(
     event: str,
     age: str,
@@ -105,7 +216,11 @@ def generate_story_locally(
 
     situation = event or "an unexpected adventure"
 
-    age_text = str(age or "6-8").lower()
+    age_text = str(age or "6").lower()
+    style = _story_style_for_age(age)
+    child_age = style["age"]
+    min_words = style["min_words"]
+    max_words = style["max_words"]
 
     # Try to make the setting fit the user's actual situation.
     lower = situation.lower()
@@ -146,12 +261,12 @@ def generate_story_locally(
     setting = rng.choice(settings)
 
     companions = [
-        ("Coco", "a quick-thinking bunny"),
-        ("Pip", "a tiny bird who asked far too many questions"),
-        ("Momo", "a cheerful fox with mismatched socks"),
-        ("Nibbles", "a nervous mouse with surprisingly brave ideas"),
-        ("Tara", "a curious turtle who never rushed"),
-        ("Biscuit", "a playful puppy who could find trouble anywhere")
+        ("Coco", "a tiny fluffy white bunny with long velvety ears and a twitchy pink nose"),
+        ("Pip", "a tiny sky-blue bird with soft feathers who asked far too many questions"),
+        ("Momo", "a cheerful little orange fox with a huge fluffy tail and mismatched socks"),
+        ("Nibbles", "a small round mouse with silky gray fur and surprisingly brave ideas"),
+        ("Tara", "a gentle green turtle with shiny eyes who never rushed"),
+        ("Biscuit", "a bouncy golden puppy with floppy ears and a tail that never stopped wagging")
     ]
 
     companion_name, companion_desc = rng.choice(companions)
@@ -166,11 +281,13 @@ def generate_story_locally(
     ])
 
     sensory = rng.choice([
-        "The air smelled like rain and fresh grass.",
-        "A warm breeze carried the sound of distant birds.",
-        "Somewhere nearby, leaves rustled like quiet applause.",
-        "Golden sunlight slipped between the trees in thin bright ribbons.",
-        "The evening air felt cool and smelled faintly of flowers."
+        "The air smelled like fresh grass and sweet little flowers, while tiny birds chirped above.",
+        "A warm breeze tickled the leaves, making them whisper softly to one another.",
+        "Golden sunlight danced between the trees like tiny sparkling ribbons.",
+        "The evening sky turned soft pink and purple while crickets began their quiet song.",
+        "A cool breeze brushed past, carrying the smell of flowers and the soft rustle of leaves.",
+        "Little drops of rain glittered on the grass like hundreds of tiny diamonds.",
+        "The moon looked like a silver cookie hanging high in the dark blue sky."
     ])
 
     opening_lines = [
@@ -258,10 +375,11 @@ def generate_story_locally(
     ])
 
     dialogue_2 = rng.choice([
-        f'"You do not have to know everything before you begin," said {companion_name}.',
-        f'"We can try one small thing first," {companion_name} replied.',
-        f'"Being nervous does not mean you cannot be brave," said {companion_name}.',
-        f'"Then we will figure it out together," {companion_name} said with a grin.'
+        f'"You do not have to know everything before you begin," said {companion_name}, smiling warmly.',
+        f'"We can try one teeny-tiny step first," {companion_name} said, wiggling happily.',
+        f'"Being nervous does not mean you cannot be brave," whispered {companion_name}.',
+        f'"Then we will figure it out together!" {companion_name} said with a huge grin.',
+        f'"Come on," {companion_name} giggled. "Adventures are much nicer with a friend."'
     ])
 
     climax_options = [
@@ -302,11 +420,37 @@ def generate_story_locally(
 
     ending = rng.choice(endings)
 
-    if any(x in age_text for x in ["3-5", "4-5", "3", "4", "5"]):
+    playful_moments = [
+        f"{companion_name} suddenly sneezed so loudly that three tiny leaves jumped off a branch. "
+        f"{hero} blinked, then burst into laughter.",
+
+        f"A butterfly landed right on {companion_name}'s nose. "
+        f"{companion_name} crossed their eyes trying to look at it, which made {hero} giggle.",
+
+        f"They heard a tiny rustle nearby. For one nervous second they froze—"
+        f"but it was only a round little beetle pushing a leaf twice its own size.",
+
+        f"{companion_name} tried to whisper a serious plan, but their tummy made a loud 'GROOOOWL!' "
+        f"They both laughed so hard they almost forgot to be worried."
+    ]
+
+    magical_moments = [
+        "Tiny fireflies blinked around them like floating golden stars.",
+        "A row of little mushrooms shimmered softly beside the path.",
+        "A feather drifted slowly from the sky and landed perfectly on the hero's head.",
+        "For just a moment, the clouds opened and a warm beam of sunlight followed them."
+    ]
+
+    playful_moment = rng.choice(playful_moments)
+    magical_moment = rng.choice(magical_moments)
+
+    if child_age <= 4:
         story = f"""
 {opening}
 
-{sensory} {hero} felt a little worried.
+{sensory}
+
+{hero} felt a little worried.
 
 {problem}
 
@@ -321,11 +465,55 @@ def generate_story_locally(
 {ending}
 """.strip()
 
-    elif any(x in age_text for x in ["9-12", "9", "10", "11", "12"]):
+    elif child_age == 5:
+        story = f"""
+{opening}
+
+{sensory}
+
+{problem}
+
+{dialogue_1}
+
+{dialogue_2}
+
+{playful_moment}
+
+{turning}
+
+{climax}
+
+{ending}
+""".strip()
+
+    elif child_age == 6:
+        story = f"""
+{opening}
+
+{sensory}
+
+{problem}
+
+{dialogue_1}
+
+{dialogue_2}
+
+{playful_moment}
+
+{turning}
+
+{magical_moment}
+
+{climax}
+
+{ending}
+""".strip()
+
+    elif child_age == 7:
         reflection = rng.choice([
-            f"{hero} began to realize that courage could exist beside fear rather than replacing it.",
-            f"{hero} understood that solving a problem sometimes meant changing the way you looked at it.",
-            f"{hero} realized that accepting help was not weakness; it was part of making a good decision."
+            f"{hero} realized that feeling nervous did not make anyone weak.",
+            f"{hero} began to understand that brave choices could start with very small steps.",
+            f"{hero} discovered that adventures felt less frightening when shared with a kind friend."
         ])
 
         story = f"""
@@ -338,23 +526,33 @@ def generate_story_locally(
 {dialogue_1}
 
 {dialogue_2}
+
+{playful_moment}
 
 {reflection}
 
 {turning}
 
+{magical_moment}
+
 {climax}
 
-For a moment, everything was quiet. Then the situation finally began to change.
+For a moment, everything became wonderfully quiet.
 
 {ending}
 """.strip()
 
     else:
-        extra = rng.choice([
-            f"{companion_name} made a ridiculous face, and even {hero} had to laugh.",
-            f"A sudden gust of wind sent leaves spinning around them like tiny dancers.",
-            f"For a moment, both friends stood still, listening and thinking."
+        reflection = rng.choice([
+            f"{hero} realized that courage was not the absence of fear; it was deciding what to do while fear was still there.",
+            f"{hero} began to see that the hardest problems sometimes looked different when viewed with curiosity instead of panic.",
+            f"{hero} discovered that accepting help could be its own kind of strength."
+        ])
+
+        second_dialogue = rng.choice([
+            f'"Wait," said {hero}. "I think I finally understand what we need to do."',
+            f'"I have an idea," {hero} whispered. "It might be a little strange, though."',
+            f'"Maybe we have been looking at this the wrong way," said {hero}.'
         ])
 
         story = f"""
@@ -368,11 +566,19 @@ For a moment, everything was quiet. Then the situation finally began to change.
 
 {dialogue_2}
 
-{extra}
+{playful_moment}
+
+{reflection}
 
 {turning}
 
+{magical_moment}
+
+{second_dialogue}
+
 {climax}
+
+For a few heartbeats, nobody spoke. Then the answer became clear.
 
 {ending}
 """.strip()

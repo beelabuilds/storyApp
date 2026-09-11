@@ -293,3 +293,88 @@ def chat_endpoint(request: ChatRequest):
         },
         "type": "story"
     }
+
+# ============================================================
+# Parent Review API
+# ============================================================
+
+from typing import Optional
+from pydantic import BaseModel, Field
+
+from database import (
+    init_database,
+    save_review,
+    get_review,
+    get_all_reviews,
+)
+
+# Make sure SQLite tables exist whenever backend starts
+init_database()
+
+
+class ParentReviewRequest(BaseModel):
+    storyId: str
+    storyTitle: str = ""
+    age: str = ""
+
+    rating: int
+    parentLiked: Optional[bool] = None
+    childSatisfied: Optional[str] = None
+
+    lengthFeedback: Optional[str] = None
+    difficultyFeedback: Optional[str] = None
+
+    improvementTags: list[str] = Field(default_factory=list)
+    comment: str = ""
+
+
+@app.post("/reviews")
+def create_or_update_parent_review(review: ParentReviewRequest):
+    if review.rating < 1 or review.rating > 10:
+        raise HTTPException(
+            status_code=400,
+            detail="Rating must be between 1 and 10."
+        )
+
+    save_review(
+        story_id=review.storyId,
+        story_title=review.storyTitle,
+        age=review.age,
+        rating=review.rating,
+        parent_liked=review.parentLiked,
+        child_satisfied=review.childSatisfied,
+        length_feedback=review.lengthFeedback,
+        difficulty_feedback=review.difficultyFeedback,
+        improvement_tags=review.improvementTags,
+        comment=review.comment,
+    )
+
+    saved = get_review(review.storyId)
+
+    return {
+        "success": True,
+        "message": "Parent review saved.",
+        "review": saved,
+    }
+
+
+@app.get("/reviews")
+def list_parent_reviews():
+    return {
+        "reviews": get_all_reviews()
+    }
+
+
+@app.get("/reviews/{story_id}")
+def get_parent_review(story_id: str):
+    review = get_review(story_id)
+
+    if review is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Review not found."
+        )
+
+    return {
+        "review": review
+    }

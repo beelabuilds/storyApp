@@ -10,7 +10,7 @@ import { ThemedView } from '@/components/themed-view';
 import { useLocalStories, Story } from '@/hooks/use-local-stories';
 import { useTheme, useThemeMode } from '@/hooks/use-theme';
 
-const getApiUrl = () => {
+export const getApiUrl = () => {
   if (Platform.OS === 'web') return 'http://localhost:8000';
   const hostUri = Constants.expoConfig?.hostUri;
   if (hostUri) {

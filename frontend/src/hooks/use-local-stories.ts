@@ -2,6 +2,18 @@ import { useState, useEffect } from 'react';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+export interface StoryReview {
+  rating: number;
+  parentLiked: boolean | null;
+  childSatisfied: 'yes' | 'a_little' | 'no' | null;
+  lengthFeedback: 'too_short' | 'just_right' | 'too_long' | null;
+  difficultyFeedback: 'too_easy' | 'just_right' | 'too_difficult' | null;
+  improvementTags: string[];
+  comment: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Story {
   id: string;
   title: string;
@@ -14,6 +26,7 @@ export interface Story {
   emoji: string;
   isFavorite: boolean;
   readingProgress: number;
+  review?: StoryReview;
 }
 
 const STORAGE_KEY = '@storyapp_saved_stories';
@@ -54,6 +67,7 @@ function normalizeStories(value: unknown): Story[] {
     ...story,
     isFavorite: story.isFavorite ?? false,
     readingProgress: story.readingProgress ?? 0,
+    review: story.review ?? undefined,
   }));
 }
 
@@ -110,6 +124,7 @@ export function useLocalStories() {
     emoji: string;
     isFavorite?: boolean;
     readingProgress?: number;
+    review?: StoryReview;
   }): Promise<Story> => {
     const existingStories = readStories();
     const existingStory = newStoryData.id
@@ -121,6 +136,7 @@ export function useLocalStories() {
       createdAt: newStoryData.createdAt ?? existingStory?.createdAt ?? new Date().toISOString(),
       isFavorite: newStoryData.isFavorite ?? existingStory?.isFavorite ?? false,
       readingProgress: newStoryData.readingProgress ?? existingStory?.readingProgress ?? 0,
+      review: newStoryData.review ?? existingStory?.review,
     };
     const withoutExisting = existingStories.filter((item) => item.id !== story.id);
     await writeStories([story, ...withoutExisting]);
@@ -131,6 +147,27 @@ export function useLocalStories() {
     const updated = readStories().map((story) => story.id === updatedStory.id ? updatedStory : story);
     await writeStories(updated);
     return updatedStory;
+  };
+
+  const saveStoryReview = async (
+    id: string,
+    reviewData: Omit<StoryReview, 'createdAt' | 'updatedAt'>
+  ) => {
+    const story = readStories().find((item) => item.id === id);
+    if (!story) return undefined;
+
+    const now = new Date().toISOString();
+
+    const review: StoryReview = {
+      ...reviewData,
+      createdAt: story.review?.createdAt ?? now,
+      updatedAt: now,
+    };
+
+    return updateStory({
+      ...story,
+      review,
+    });
   };
 
   const toggleFavorite = async (id: string) => {
@@ -174,6 +211,7 @@ export function useLocalStories() {
     loading,
     saveStory,
     updateStory,
+    saveStoryReview,
     toggleFavorite,
     getStoryById,
     deleteStory,
