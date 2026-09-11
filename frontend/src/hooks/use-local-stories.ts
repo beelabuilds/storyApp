@@ -43,7 +43,7 @@ async function readPersistedStories(): Promise<Story[]> {
     memoryStoriesCache = stories;
     return stories;
   } catch (error) {
-    console.error('Failed to load stories:', error);
+    console.warn('AsyncStorage unavailable, falling back to memory:', error);
     return [...memoryStoriesCache];
   }
 }
@@ -59,10 +59,18 @@ function normalizeStories(value: unknown): Story[] {
 
 async function writeStories(stories: Story[]) {
   if (Platform.OS === 'web') {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(stories));
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(stories));
+    } catch (e) {
+      console.warn('localStorage write failed:', e);
+    }
   } else {
     memoryStoriesCache = stories;
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(stories));
+    try {
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(stories));
+    } catch (e) {
+      console.warn('AsyncStorage write failed, saved in memory:', e);
+    }
   }
   storyListeners.forEach((listener) => listener([...stories]));
 }
@@ -149,7 +157,11 @@ export function useLocalStories() {
         localStorage.removeItem(STORAGE_KEY);
       } else {
         memoryStoriesCache = [];
-        await AsyncStorage.removeItem(STORAGE_KEY);
+        try {
+          await AsyncStorage.removeItem(STORAGE_KEY);
+        } catch (e) {
+          console.warn('AsyncStorage clear failed:', e);
+        }
       }
       storyListeners.forEach((listener) => listener([]));
     } catch (e) {
