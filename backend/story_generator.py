@@ -8,15 +8,51 @@ if project_root not in sys.path:
 
 from prompts import build_story_prompt
 
-# Check if Qwen integration is configured and can be imported
 try:
-    from ai.qwen_integration import generate_story_with_qwen
+    from ai.qwen_integration import (
+        generate_story_with_qwen,
+        suggest_goals_with_qwen,
+        is_qwen_available
+    )
     HAS_QWEN = True
 except (ImportError, ModuleNotFoundError):
     HAS_QWEN = False
+    def is_qwen_available(): return False
 
 
-def prepare_story_prompt(event, age, goal, character, language):
+import random
+import uuid
+
+def suggest_goals(age=None, event=None, character=None, language="English") -> list:
+    """
+    Returns context-grounded goal suggestions.
+    Uses Qwen3.5-9B if reachable, otherwise returns smart grounded fallbacks.
+    """
+    if HAS_QWEN and is_qwen_available():
+        try:
+            res = suggest_goals_with_qwen(age=age, event=event, character=character, language=language)
+            if res:
+                return res
+        except Exception as e:
+            print("Qwen suggest_goals fallback:", e)
+
+    ev = (event or "").lower()
+    if any(k in ev for k in ["dark", "night", "sleep", "bed", "shadow"]):
+        return ["Feeling safe in the dark", "Overcoming fear of bedtime", "Finding peace at night", "Being brave before sleeping"]
+    elif any(k in ev for k in ["swim", "water", "pool", "deep", "drown"]):
+        return ["Trying swimming again", "Taking small steps to feel confident", "Learning to feel safe in the water", "Facing the fear with support"]
+    elif any(k in ev for k in ["school", "class", "kindergarten", "teacher"]):
+        return ["Making new friends", "Feeling confident in class", "Speaking up bravely", "Enjoying school activities"]
+    elif any(k in ev for k in ["share", "toy", "fight", "brother", "sister"]):
+        return ["Sharing favorite toys", "Taking turns happily", "Showing kindness to siblings", "Playing together cooperatively"]
+    elif any(k in ev for k in ["doctor", "dentist", "shot", "hospital", "sick"]):
+        return ["Being brave at the doctor", "Understanding health visits", "Staying calm during checkups", "Feeling proud after the visit"]
+    elif any(k in ev for k in ["fear", "scare", "afraid", "nervous"]):
+        return ["Building inner confidence", "Taking small brave steps", "Learning to feel safe", "Facing challenges with courage"]
+    else:
+        return ["Building confidence", "Trying something new", "Being kind to others", "Feeling brave and curious"]
+
+def prepare_story_prompt(event, age, goal, character, language, story_seed=None):
     """
     Prepare the prompt that will be sent to the AI model.
     """
@@ -25,183 +61,312 @@ def prepare_story_prompt(event, age, goal, character, language):
         age=age,
         goal=goal,
         character=character,
-        language=language
+        language=language,
+        story_seed=story_seed
     )
 
 
-def generate_story_locally(event: str, age: str, goal: str, character: str, language: str) -> dict:
+def generate_story_locally(event: str, age: str, goal: str, character: str, language: str, story_seed: str = None) -> dict:
     """
-    Generates a high-quality, customized children's story locally using templates.
-    Tailors the text based on age, event, goal, and character.
+    Generates a high-quality, customized children's story locally.
+    Tailors the text based on age, event, goal, character, and ensures originality through dynamic seeds.
     """
-    # Clean inputs
-    char_name = character.strip() or "A friendly little friend"
-    ev_lower = event.lower()
-    goal_lower = goal.lower()
+    char_name = character.strip() or "A curious little adventurer"
+    clean_event = event.strip() or "A brand new day of discovery"
+    ev_lower = clean_event.lower()
+    goal_lower = (goal or "").lower()
     
-    # Identify themes from event
-    theme = "general"
-    if "dark" in ev_lower or "night" in ev_lower or "sleep" in ev_lower or "bed" in ev_lower:
-        theme = "dark"
-    elif "school" in ev_lower or "class" in ev_lower or "teacher" in ev_lower or "kindergarten" in ev_lower:
-        theme = "school"
-    elif "tooth" in ev_lower or "teeth" in ev_lower:
-        theme = "tooth"
-    elif "share" in ev_lower or "toy" in ev_lower or "friend" in ev_lower or "fight" in ev_lower:
-        theme = "sharing"
-
-    # Identify goal label
-    goal_label = "being brave"
-    if "share" in goal_lower or "empathy" in goal_lower:
-        goal_label = "sharing with others"
-    elif "patience" in goal_lower or "wait" in goal_lower:
-        goal_label = "being patient"
-    elif "kind" in goal_lower or "help" in goal_lower:
-        goal_label = "showing kindness"
-    elif "calm" in goal_lower or "anger" in goal_lower or "breath" in goal_lower:
-        goal_label = "staying calm and taking deep breaths"
-
-    # Build age-based styling details
-    # 3-5: Simple, short sentences, repetitive, cozy.
-    # 6-8: Moderate length, some minor drama/resolution, slightly richer descriptions.
-    # 9-12: Richer vocab, deeper character reflection, longer paragraphs.
-    
-    title = ""
-    paragraphs = []
-
-    if theme == "dark":
-        title = f"{char_name}'s Sparkly Starry Night"
-        
-        intro_3_5 = f"Once upon a time, there was a little friend named {char_name}. {char_name} loved playing in the bright sunshine. But when the night came, {char_name} did not like the dark. Every night, when the lights went click-clack, the bedroom felt too big and too quiet."
-        intro_6_8 = f"In a cozy treehouse near the whispering woods lived a cheerful explorer named {char_name}. {char_name} spent the days climbing high branches and chasing colorful butterflies. But when night fell and the shadows grew long, {char_name} felt a little squeeze in their heart. The dark was mysterious, and {char_name} preferred the sunny daylight."
-        intro_9_12 = f"Deep within the valley of Everglow, a curious young adventurer named {char_name} spent their days studying ancient maps and exploring hidden paths. While {char_name} was known for their bright spirit during the day, the sunset brought a different feeling. When the shadows stretched across the room, {char_name} would stare at the dark corners, wishing for just a little more light."
-
-        middle_3_5 = f"Tonight was special. {char_name} was trying to sleep. But it was very dark! {char_name} felt nervous. Then, {char_name} remembered their goal: {goal_label}. {char_name} looked up at the window. There were tiny stars blinking like nightlights. They seemed to whisper, 'You are safe!'"
-        middle_6_8 = f"Tonight, {char_name} was facing a challenge: {event}. The room was filled with soft shadows, and it felt a little scary. {char_name} wanted to practice {goal_label}. {char_name} took a slow, deep breath, just like a wise owl. {char_name} looked out the window and noticed that the moon was shining like a silver nightlight, casting a warm and friendly glow."
-        middle_9_12 = f"On this particular night, {char_name} faced a new situation: {event}. The darkness seemed to cover everything. Remembering their promise to practice {goal_label}, {char_name} decided to try a new perspective. Instead of seeing the dark as a scary mystery, they thought of it as the earth's natural blanket, allowing the flowers, trees, and animals to rest. {char_name} sat up, closed their eyes, and listened to the gentle hum of the cricket symphony outside."
-
-        ending_3_5 = f"{char_name} hugged their teddy close. {char_name} took a deep breath. 1... 2... 3... and smiled. The dark was just a cozy blanket! {char_name} closed their eyes and had sweet, happy dreams. {char_name} was so proud of {goal_label}!"
-        ending_6_8 = f"With a brave smile, {char_name} pulled the soft blanket up to their chin. They cuddled their favorite toy and thought of all the fun adventures waiting tomorrow. Realizing that the dark was just a quiet time for sweet dreams, {char_name} drifted off to sleep, feeling incredibly proud of {goal_label}."
-        ending_9_12 = f"Taking a long, calming breath, {char_name} let the tension leave their shoulders. They realized that courage didn't mean never being afraid; it meant finding peace even in the quiet dark. Wrapped in the soft covers, {char_name} fell into a deep, restful sleep. In the morning, they woke up feeling refreshed, strong, and ready for a new day, proud of their growth in {goal_label}."
-
-    elif theme == "school":
-        title = f"{char_name}'s Big School Adventure"
-        
-        intro_3_5 = f"Meet {char_name}! {char_name} had a brand new backpack. Today was the first day of school. {char_name} held their parent's hand tightly. The school looked very big, and there were many new faces."
-        intro_6_8 = f"It was a sunny Monday morning, and {char_name} was standing right in front of the school gates. Today was a big day: {event}. With a new pencil box and a shiny lunchbox, {char_name} felt excitement and a little bit of butterflies in their tummy."
-        intro_9_12 = f"The morning bell rang, echoing across the crowded school yard. {char_name} stood near the entrance, adjusting their backpack straps. Today brought a new chapter: {event}. Surrounded by groups of students talking and laughing, {char_name} felt a sudden wave of shyness."
-
-        middle_3_5 = f"Inside the classroom, {char_name} saw toys and colorful drawings. But {char_name} felt shy. Then, {char_name} remembered to practice {goal_label}. {char_name} saw a child sitting alone near the puzzle blocks. {char_name} walked over, step by step."
-        middle_6_8 = f"Walking into the classroom, {char_name} felt unsure about where to sit. The teacher, Miss Robin, gave a warm smile. {char_name} remembered their goal to focus on {goal_label}. Instead of waiting in the corner, {char_name} walked up to a table where a classmate was drawing and asked if they could join."
-        middle_9_12 = f"Entering the classroom, {char_name} scaned the room for an empty desk. They knew this was a prime opportunity to work on {goal_label}. Resisting the urge to hide in the back row, {char_name} walked over to a group working on a science poster. They offered a friendly greeting and asked how they could help contribute to the project."
-
-        ending_3_5 = f"{char_name} showed a big smile. 'Can I play?' {char_name} asked. The child said, 'Yes!' They built a tall tower together. School was fun! {char_name} was happy they practiced {goal_label}."
-        ending_6_8 = f"The classmate smiled brightly and shared a blue crayon. Soon, they were laughing and talking about their favorite games. By the time the final bell rang, {char_name} had made a new friend and realized that school is a place for discovery. They walked home happily, proud of {goal_label}."
-        ending_9_12 = f"The team welcomed {char_name} warmly, and within minutes, they were brainstorming ideas together. {char_name} felt the nervous butterflies disappear, replaced by a sense of belonging. Walking home after school, {char_name} realized that taking the initiative and showing {goal_label} made all the difference in turning a nervous day into a successful one."
-
-    elif theme == "tooth":
-        title = f"{char_name} and the Magic Tooth Fairy"
-        
-        intro_3_5 = f"Pop! {char_name} had a loose tooth, and today it came out! {char_name} looked in the mirror. There was a tiny window in their smile. It felt funny when they touched it with their tongue."
-        intro_6_8 = f"It finally happened! {char_name} was chewing a crunchy apple when—wiggle, wiggle, pop!—their tooth came out. {char_name} held the tiny, white tooth in their hand. It was their very first lost tooth, representing {event}."
-        intro_9_12 = f"During lunch, {char_name} felt a sudden pop. They realized they had finally lost another tooth, which was related to {event}. Looking at the tiny tooth in their palm, {char_name} realized how much they were growing up."
-
-        middle_3_5 = f"{char_name} was a little bit worried. Would their smile look silly? But {char_name} remembered to practice {goal_label}. {char_name} washed the tiny tooth. They put it under their soft pillow before going to bed."
-        middle_6_8 = f"{char_name} was proud but also had a few questions. Would a new tooth grow back quickly? They decided to practice {goal_label}. They carefully cleaned the tooth, wrote a tiny letter, and placed both safely under their pillow."
-        middle_9_12 = f"Though losing a tooth is a normal part of growing up, it always felt a bit strange. {char_name} decided to practice {goal_label}. They placed the tooth in a special pouch under their pillow, feeling curious about the folklore and wondering what the night would bring."
-
-        ending_3_5 = f"In the morning, {char_name} looked under the pillow. The tooth was gone! In its place was a shiny coin. {char_name} smiled a big, happy, gappy smile. {char_name} was so happy about {goal_label}!"
-        ending_6_8 = f"When the sun rose, {char_name} searched under the pillow. The tooth was replaced by a shiny silver coin and a tiny note thanking them for being so clean. {char_name} smiled a big, proud, toothy smile, excited to show their friends, happy about {goal_label}."
-        ending_9_12 = f"The next morning, the tooth was replaced with a crisp coin and a note praising their independence. {char_name} stood in front of the mirror, smiling at the new gap, recognizing it as a mark of growth and feeling incredibly proud of {goal_label}."
-
-    elif theme == "sharing":
-        title = f"{char_name} Shares the Joy"
-        
-        intro_3_5 = f"{char_name} had a beautiful, shiny red ball. It was {char_name}'s favorite toy. {char_name} was playing in the park. Then, another child came by and looked at the ball with sad eyes."
-        intro_6_8 = f"It was a busy afternoon at the playground. {char_name} was playing with their brand new, remote-controlled toy truck. It could climb over rocks and spin around. A little boy stood nearby, watching the truck with wide, hopeful eyes."
-        intro_9_12 = f"At the community center, {char_name} was working on a beautiful art kit they had received for their birthday. It had every color of paint imaginable. Another kid, who was sitting at the same table, only had a few broken crayons and was looking longingly at {char_name}'s colors."
-
-        middle_3_5 = f"{char_name} wanted to keep the ball. Sharing felt hard! But {char_name} remembered their goal: {goal_label}. {char_name} took a deep breath. {char_name} held out the shiny red ball. 'Do you want to roll it?'"
-        middle_6_8 = f"{char_name} felt a little protective of the new truck. What if it got scratched? But {char_name} wanted to practice {goal_label}. They remembered how it felt to want to play. {char_name} walked over, showed the remote, and said, 'Do you want to take turns steering it?'"
-        middle_9_12 = f"{char_name} hesitated, feeling a bit possessive of the clean, new paints. However, they realized this was a moment to choose {goal_label}. Recognizing the other kid's situation, {char_name} pushed the paint set to the center of the table. 'Hey, we can share these paints if you want! What are you drawing?'"
-
-        ending_3_5 = f"The child smiled so big! They rolled the ball back and forth. They laughed together. Playing together was twice as fun! {char_name} was so happy they practiced {goal_label}."
-        ending_6_8 = f"The boy's face lit up. They spent the next hour building ramps and taking turns driving the truck. {char_name} realized that sharing the toy didn't make the fun go away; it actually doubled it. They walked home with a warm feeling in their heart, proud of {goal_label}."
-        ending_9_12 = f"The other kid smiled with relief and accepted the offer. They spent the afternoon painting a giant mural of a space castle, blending their ideas and colors together. {char_name} realized that by sharing their paints, they didn't lose anything—instead, they gained a collaborative project and a new friend, feeling proud of {goal_label}."
-
+    # Determine goal phrasing
+    if any(k in goal_lower for k in ["brave", "fear", "dark", "courage"]):
+        goal_label = "being brave and believing in yourself"
+        action_phrase = f"{char_name} took a deep breath and stood tall"
+    elif any(k in goal_lower for k in ["share", "toy", "friend", "kind"]):
+        goal_label = "kindness and the magic of sharing"
+        action_phrase = f"{char_name} offered a warm smile and opened their hands to share"
+    elif any(k in goal_lower for k in ["patient", "wait", "calm"]):
+        goal_label = "patience and staying calm"
+        action_phrase = f"{char_name} counted to three softly and waited with a calm heart"
+    elif any(k in goal_lower for k in ["listen", "focus", "learn", "school"]):
+        goal_label = "listening carefully and learning new things"
+        action_phrase = f"{char_name} listened with curious eyes and an open mind"
     else:
-        # General Fallback theme
-        title = f"{char_name}'s Special Day"
-        
-        intro_3_5 = f"Once upon a time, there was a happy little friend named {char_name}. {char_name} lived in a cozy house. Today, something new happened. {char_name} had to deal with {event}."
-        intro_6_8 = f"In a green valley where the flowers always bloomed lived a kind adventurer named {char_name}. {char_name} loved exploring. But today brought a brand new challenge: {event}."
-        intro_9_12 = f"In the quiet town of Oakridge, a bright student named {char_name} always looked forward to new experiences. However, today brought a unique situation: {event}. It was something {char_name} hadn't faced before, and it made them think deeply."
+        goal_label = goal.strip() if goal else "friendship, curiosity, and joy"
+        action_phrase = f"{char_name} showed great heart and determination"
 
-        middle_3_5 = f"{char_name} felt a little unsure. It was hard! But {char_name} remembered to practice {goal_label}. {char_name} took a slow breath. 1... 2... 3... and decided to try their best."
-        middle_6_8 = f"{char_name} wasn't sure how to handle it. They felt a mix of feelings. But {char_name} wanted to practice {goal_label}. They sat down, thought of a good plan, and decided to take action."
-        middle_9_12 = f"{char_name} stood still for a moment, weighing their options. They knew that the best way forward was to practice {goal_label}. Taking a deep breath to steady their mind, they approached the situation calmly and looked for a creative solution."
+    # Seeded random generator for reproducible variety
+    rng = random.Random(story_seed if story_seed else uuid.uuid4().hex)
 
-        ending_3_5 = f"It worked! {char_name} did it. {char_name} was so happy and felt very warm inside. {char_name} knew that {goal_label} was a wonderful thing!"
-        ending_6_8 = f"Everything turned out beautifully. {char_name} felt a wave of pride wash over them. They realized that by choosing {goal_label}, they had turned a difficult moment into a happy success. They couldn't wait to share their day with their parents."
-        ending_9_12 = f"The situation was resolved in a positive way. {char_name} felt a strong sense of accomplishment. They learned that facing challenges with {goal_label} builds character and strength. They walked away with a smile, ready for whatever came next."
+    # Dynamic settings & companions
+    settings = [
+        "a sun-drenched garden filled with whispering blossoms",
+        "a cheerful cozy home tucked under gentle hills",
+        "a bustling neighborhood full of playful breezes",
+        "a colorful playground painted with warm afternoon light",
+        "a magical little corner where exciting ideas grow"
+    ]
+    setting = rng.choice(settings)
 
-    # Select paragraph based on age group
-    if "3-5" in age:
-        paragraphs = [intro_3_5, middle_3_5, ending_3_5]
-    elif "6-8" in age:
-        paragraphs = [intro_6_8, middle_6_8, ending_6_8]
-    else:  # "9-12" or fallback
-        paragraphs = [intro_9_12, middle_9_12, ending_9_12]
+    # Dynamic titles
+    title_templates = [
+        f"{char_name} and the Day of {clean_event.title()[:30]}",
+        f"{char_name}'s Big Surprise",
+        f"The Adventure of {char_name}",
+        f"{char_name} Finds the Way",
+        f"{char_name}'s Bright Heart"
+    ]
+    title = rng.choice(title_templates)
 
-    # Combine paragraphs into a clean text block
-    story_body = "\n\n".join(paragraphs)
-    
+    # 4-5 Years (Simple, sensory, rhythmic, comforting: 300–450 words / 3–5 min read)
+    if any(k in age for k in ["4-5", "3-5", "4", "5", "preschool", "kindergarten", "toddler"]):
+        intro_pool = [
+            (
+                f"Once upon a time, in {setting}, lived {char_name}. "
+                f"{char_name} had soft, cuddly paws, bright curious eyes, and loved warm fuzzy blankets, sweet honey snacks, and giggling with friends. "
+                f"The sun was beginning to dip below the treetops, painting the sky in lovely shades of peach and lavender. "
+                f"Everything around the cozy house was quiet and calm, but today brought a brand new moment to explore: {clean_event}. "
+                f"{char_name} stood near the soft rug and looked around with a little flutter in the tummy. "
+                f"'I wonder what will happen now,' {char_name} whispered softly."
+            ),
+            (
+                f"In a cozy corner of {setting}, {char_name} was having a very special day. "
+                f"With bouncy little steps and a happy little tail wag, {char_name} loved chasing dandelion puffs and listening to the evening crickets. "
+                f"As the shadows grew longer and bedtime came closer, it was time to experience {clean_event}. "
+                f"{char_name} paused by the bedroom door, clutching a favorite plush toy. "
+                f"The room felt very quiet, and {char_name}'s heart went pitter-patter like gentle raindrops on a windowpane."
+            )
+        ]
+        scene2_pool = [
+            (
+                f"At first, {char_name} stopped and held on tight. "
+                f"Facing {clean_event} felt a little new and a little mysterious. "
+                f"A gentle voice came from nearby: 'It is okay to feel a little unsure, little one. We can take this one gentle step at a time.' "
+                f"{char_name} took a slow, deep breath in—smelling fresh pine and cozy lavender—and let it out like blowing soft bubbles. "
+                f"Whoosh! The funny flutter in the tummy began to calm down. "
+                f"'I can try,' {char_name} said in a sweet, steady voice. 'I want to practice {goal_label}.'"
+            ),
+            (
+                f"Looking closely at the room, {char_name} noticed the warm nightlight glowing like a friendly little star. "
+                f"Even though {clean_event} had seemed big and scary a moment ago, {char_name} remembered the magic of {goal_label}. "
+                f"'When I feel nervous, I can count my breath,' {char_name} thought. "
+                f"One, two, three. In went the calm, and out went the worry. "
+                f"{action_phrase}. With each small step forward, the space felt much warmer and safer."
+            )
+        ]
+        scene3_pool = [
+            (
+                f"Step by step, {char_name} discovered that everything was friendly and safe. "
+                f"The shapes on the wall were just gentle tree branches waving hello in the moonlight. "
+                f"By focusing on {goal_label}, {char_name} felt strong and capable inside. "
+                f"{action_phrase}. A big, joyful smile lit up {char_name}'s face, and all the previous hesitation melted away into pure happiness."
+            ),
+            (
+                f"With newfound courage, {char_name} hopped right into the middle of the moment. "
+                f"Putting {goal_label} into action made the whole world feel brighter. "
+                f"{char_name} discovered that doing something new is just like opening a wonderful storybook—the first page might be a surprise, but it leads to something magical."
+            )
+        ]
+        ending_pool = [
+            (
+                f"Hooray! {char_name} did it! A warm, proud glow filled {char_name}'s chest. "
+                f"Snuggled up safe and sound under a fluffy cloud blanket, {char_name} gave the plush toy a gentle hug. "
+                f"'I was so brave today,' {char_name} murmured happily with heavy eyelids. "
+                f"Outside, the moon watched over {setting}, and {char_name} drifted off into sweet, peaceful dreams, proud of {goal_label}."
+            ),
+            (
+                f"With a happy little yawn and a cozy stretch, {char_name} knew that everything was safe, peaceful, and full of love. "
+                f"Facing {clean_event} had shown {char_name} just how special {goal_label} really is. "
+                f"Tucked in warmly with a calm heart and a smiling face, {char_name} closed both eyes and welcomed a night full of happy adventures in dreamland."
+            )
+        ]
+
+        intro = rng.choice(intro_pool)
+        scene2 = rng.choice(scene2_pool)
+        scene3 = rng.choice(scene3_pool)
+        ending = rng.choice(ending_pool)
+        story_body = f"{intro}\n\n{scene2}\n\n{scene3}\n\n{ending}"
+
+        return {
+            "title": title,
+            "story": story_body,
+            "seed": story_seed
+        }
+
+    # 6-8 Years (Relatable challenges, dialogue, gentle humor, early elementary: 500–750 words / 5–8 min read)
+    elif any(k in age for k in ["6-8", "6", "7", "8", "school"]):
+        intro_pool = [
+            (
+                f"The sun was just rising over {setting}, casting long golden rays through the tall trees. "
+                f"{char_name} was carefully packing a favorite backpack with curious little notebooks, a smooth lucky pebble, and a heart full of excitement. "
+                f"Today, however, was no ordinary morning. An important event was about to unfold: {clean_event}.\n\n"
+                f"As the clock on the wall ticked closer, {char_name} felt a familiar fluttering sensation in the chest. "
+                f"'I really want everything to go well today,' {char_name} murmured softly while adjusting the backpack straps. "
+                f"Outside the window, a gentle breeze rustled the leaves, whispering words of encouragement into the morning air."
+            ),
+            (
+                f"In the cheerful, bustling heart of {setting}, {char_name} was known by friends for having a quick imagination, boundless curiosity, and a kind heart. "
+                f"Yet today presented a unique new adventure that brought a sudden wave of nervous excitement: {clean_event}.\n\n"
+                f"Standing near the front door, {char_name} looked out at the winding path leading ahead. "
+                f"'This feels much bigger and newer than what I usually do,' {char_name} thought, pausing for a moment on the porch. "
+                f"Taking a deep breath of the fresh morning air, {char_name} decided to take the very first step forward."
+            )
+        ]
+        scene2_pool = [
+            (
+                f"When {char_name} arrived at the center of the action, the surrounding sounds were buzzing with lively chatter and cheerful music. "
+                f"Groups of friends were laughing together, and everyone seemed to know exactly what to do, but the reality of {clean_event} made {char_name} hesitate at the doorway.\n\n"
+                f"A friendly companion walked over, noticing the hesitation, and asked with a warm, welcoming smile, 'Are you ready for today's big moment?'\n\n"
+                f"{char_name} took a steady breath, looked down at sticky paws, and replied honestly, 'It feels a little scary, and my tummy feels like it is doing somersaults. But I really want to try.'\n\n"
+                f"'That is completely normal,' the friend encouraged kindly. 'Every great explorer feels those butterflies. Taking the first step together is always where the real magic begins.'"
+            ),
+            (
+                f"Stepping into the bright room, {char_name} noticed how quickly everything was moving around {clean_event}. "
+                f"For a brief second, the temptation to step back into the hallway and wait where it felt quiet and safe was very strong.\n\n"
+                f"Then {char_name} remembered the power and promise of {goal_label}. "
+                f"'If I don't try now, I will always wonder what could have happened,' {char_name} thought with growing resolve.\n\n"
+                f"Looking up with determination in bright eyes, {char_name} said, 'I can take this one small step at a time.' "
+                f"{action_phrase}, and the initial hesitation began transforming into vibrant, curious energy."
+            )
+        ]
+        scene3_pool = [
+            (
+                f"Right when the challenge reached its most interesting moment, quick thinking and true character were needed. "
+                f"An unexpected obstacle popped up right in the middle of {clean_event}, catching almost everyone off guard.\n\n"
+                f"Instead of panicking or giving up, {char_name} paused, observed the situation carefully, and remembered: {goal_label}. "
+                f"{action_phrase}.\n\n"
+                f"With patience, active listening, and a creative spark, {char_name} suggested a clever idea that nobody else had thought of. "
+                f"What had seemed complicated and intimidating just moments before started unfolding smoothly, piece by piece.\n\n"
+                f"Everyone nearby cheered in appreciation, and {char_name} felt a glorious burst of genuine warmth spreading through every step."
+            ),
+            (
+                f"Facing the very heart of {clean_event}, {char_name} made a thoughtful choice to lead with kindness and resolve. "
+                f"When things got tricky, {char_name} stayed calm and offered a helping hand to others who were also feeling uncertain.\n\n"
+                f"By focusing on {goal_label}, {action_phrase}. "
+                f"The obstacles began to clear away like morning mist under the warm sun, revealing an exciting path forward that brought bright smiles to everyone involved."
+            )
+        ]
+        ending_pool = [
+            (
+                f"By late afternoon, the golden sky turned into soft shades of twilight and rose over {setting}. "
+                f"{char_name} looked back at everything that had happened during {clean_event} with a proud, beaming smile.\n\n"
+                f"The worry and hesitation from the morning were now completely replaced by an empowering sense of accomplishment. "
+                f"'I did it,' {char_name} whispered happily. 'Facing something new with {goal_label} makes all the difference in the world.'\n\n"
+                f"Walking home with a light, bouncy step, {char_name} couldn't wait to share the story with family and felt ready for whatever exciting adventures tomorrow might bring."
+            ),
+            (
+                f"As the first evening stars began to twinkle peacefully above {setting}, a deep sense of confidence filled {char_name}'s thoughts. "
+                f"Navigating {clean_event} had proven that true bravery doesn't mean never feeling nervous—it means acknowledging the nervousness, choosing {goal_label}, and taking the hop forward anyway.\n\n"
+                f"Snuggled up warmly in bed with peaceful thoughts and joyful memories, {char_name} fell asleep with a calm heart and a confident smile, dreaming of new horizons."
+            )
+        ]
+
+        intro = rng.choice(intro_pool)
+        scene2 = rng.choice(scene2_pool)
+        scene3 = rng.choice(scene3_pool)
+        ending = rng.choice(ending_pool)
+        story_body = f"{intro}\n\n{scene2}\n\n{scene3}\n\n{ending}"
+
+        return {
+            "title": title,
+            "story": story_body,
+            "seed": story_seed
+        }
+
+    # 9-12 Years (Richer narrative, thoughtful reflection, agency)
+    else:
+        intro_pool = [
+            f"Across {setting}, the day unfolded with high expectations for {char_name}. An important moment had arrived: {clean_event}.",
+            f"For {char_name}, solving puzzles and navigating new situations was a daily passion. Yet today brought a distinctive test in the form of {clean_event}.",
+            f"The morning began with clear skies and a thoughtful mindset for {char_name}. Little did they know, {clean_event} would push them to put their principles into practice."
+        ]
+        middle_pool = [
+            f"Confronted with the reality of {clean_event}, {char_name} carefully weighed their choices. True progress required {goal_label}. {action_phrase}. By taking initiative and looking at the challenge from a fresh angle, {char_name} discovered a thoughtful solution.",
+            f"The complexity of {clean_event} demanded focus and integrity. Remembering that real strength comes from {goal_label}, {action_phrase}. Step by step, {char_name} navigated the obstacles with poise.",
+            f"Rather than taking the easy route, {char_name} embraced the responsibility that {clean_event} brought. Committing to {goal_label}, {action_phrase}. Their decisive actions inspired everyone nearby."
+        ]
+        ending_pool = [
+            f"Reflecting on how the situation resolved, {char_name} felt a deep sense of maturity and accomplishment. They proved that embracing {goal_label} turns any challenge into a lasting triumph.",
+            f"As the evening settled peacefully over {setting}, {char_name} stood proud. Overcoming {clean_event} demonstrated that genuine character and {goal_label} make every journey worthwhile.",
+            f"With newfound perspective and confidence, {char_name} knew this experience would stay with them for years to come—a shining example of {goal_label} in action."
+        ]
+
+    intro = rng.choice(intro_pool)
+    middle = rng.choice(middle_pool)
+    ending = rng.choice(ending_pool)
+
+    story_body = f"{intro}\n\n{middle}\n\n{ending}"
+
     return {
         "title": title,
-        "story": story_body
+        "story": story_body,
+        "seed": story_seed
     }
 
 
-def generate_story(event: str, age: str, goal: str, character: str, language: str) -> dict:
+import re
+
+def format_into_short_paragraphs(text: str) -> str:
+    """
+    Ensures story text has short, bite-sized paragraphs (1-2 sentences max per paragraph),
+    creating an engaging, airy, child-friendly reading experience.
+    """
+    if not text:
+        return ""
+    
+    paragraphs = text.strip().split("\n\n")
+    reformatted = []
+    
+    for para in paragraphs:
+        cleaned_para = para.strip()
+        if not cleaned_para:
+            continue
+        
+        sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', cleaned_para) if s.strip()]
+        
+        chunk = []
+        for s in sentences:
+            chunk.append(s)
+            if len(chunk) == 2 or (len(chunk) == 1 and len(s) > 130):
+                reformatted.append(" ".join(chunk))
+                chunk = []
+        if chunk:
+            reformatted.append(" ".join(chunk))
+                
+    return "\n\n".join(reformatted)
+
+
+def generate_story(event: str, age: str, goal: str, character: str, language: str = "English", story_seed: str = None) -> dict:
     """
     Main entry point for generating stories.
-    Tries to use Qwen3.5-9B if it's imported, otherwise falls back to local template generation.
+    Tries to use Qwen3.5-9B if reachable (e.g. running via Colab notebook),
+    otherwise falls back to customized local story generation.
     """
-    prompt = prepare_story_prompt(event, age, goal, character, language)
+    if not story_seed:
+        story_seed = uuid.uuid4().hex[:12]
+
+    prompt = prepare_story_prompt(event, age, goal, character, language, story_seed=story_seed)
     
-    if HAS_QWEN:
+    if HAS_QWEN and is_qwen_available():
         try:
-            story_text = generate_story_with_qwen(prompt)
-            # Parse story_text into title and body
-            # Expected format: Title: [Title]\n\n[Body]
-            lines = story_text.strip().split("\n")
-            title = "A Special Story"
-            body_lines = []
-            
-            for line in lines:
-                if line.lower().startswith("title:"):
-                    title = line[len("title:"):].strip()
-                else:
-                    body_lines.append(line)
-            
-            body = "\n".join(body_lines).strip()
-            if not body:
-                body = story_text
-                
-            return {
-                "title": title,
-                "story": body,
-                "prompt": prompt,
-                "engine": "Qwen3.5-9B"
-            }
+            res = generate_story_with_qwen(
+                age=age,
+                event=event,
+                goal=goal,
+                character=character,
+                language=language
+            )
+            res["story"] = format_into_short_paragraphs(res.get("story", ""))
+            res["prompt"] = prompt
+            res["seed"] = story_seed
+            return res
         except Exception as e:
-            # Fall back to template generation on error
-            local_res = generate_story_locally(event, age, goal, character, language)
+            local_res = generate_story_locally(event, age, goal, character, language, story_seed=story_seed)
+            local_res["story"] = format_into_short_paragraphs(local_res.get("story", ""))
             local_res["prompt"] = prompt
             local_res["engine"] = f"Template-Fallback (Qwen Error: {str(e)})"
             return local_res
     else:
-        local_res = generate_story_locally(event, age, goal, character, language)
+        local_res = generate_story_locally(event, age, goal, character, language, story_seed=story_seed)
+        local_res["story"] = format_into_short_paragraphs(local_res.get("story", ""))
         local_res["prompt"] = prompt
         local_res["engine"] = "Template-Engine"
         return local_res
