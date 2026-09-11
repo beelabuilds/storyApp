@@ -1,4 +1,4 @@
-﻿from pathlib import Path
+from pathlib import Path
 import json
 import sqlite3
 from datetime import datetime, timezone
@@ -109,6 +109,8 @@ def save_review(
         ))
 
         conn.commit()
+
+    return get_review(story_id)
 
 
 def _review_to_dict(row):

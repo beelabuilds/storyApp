@@ -111,19 +111,28 @@ export default function HomeChat() {
 
       let attachedStory: Story | undefined = undefined;
       if (data.story) {
-        attachedStory = {
-          id: `story-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-          title: data.story.title || 'A New Adventure',
-          story: data.story.content || data.story.story || '',
-          event: String(nextContext.dailyEvent || ''),
-          goal: String(nextContext.goal || 'Just for fun'),
-          character: String(nextContext.hero || 'A friendly explorer'),
-          age: String(nextContext.age || '6-8'),
-          createdAt: new Date().toISOString(),
-          emoji: '✦',
-          isFavorite: false,
-          readingProgress: 0
-        };
+        const storyText = typeof data.story === 'string'
+          ? data.story
+          : (data.story.content || data.story.story || '');
+        const storyTitle = (typeof data.story === 'object' && data.story?.title)
+          ? data.story.title
+          : 'A New Adventure';
+
+        if (storyText) {
+          attachedStory = {
+            id: `story-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+            title: storyTitle,
+            story: storyText,
+            event: String(nextContext.dailyEvent || ''),
+            goal: String(nextContext.goal || 'Just for fun'),
+            character: String(nextContext.hero || 'A friendly explorer'),
+            age: String(nextContext.age || '6-8'),
+            createdAt: new Date().toISOString(),
+            emoji: '✦',
+            isFavorite: false,
+            readingProgress: 0
+          };
+        }
       }
 
       addMessage({
