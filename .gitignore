@@ -8,3 +8,6 @@ __pycache__/
 __pycache__/
 *.pyc
 backend/storyapp.db
+
+__pycache__/
+*.pyc
