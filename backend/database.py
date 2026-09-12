@@ -156,6 +156,198 @@ def get_all_reviews():
     return [_review_to_dict(row) for row in rows]
 
 
+def build_parent_feedback_prompt(age=None, limit=10):
+    """
+    Convert recent structured parent reviews into simple
+    personalization instructions for the story model.
+
+    If reviews for the requested age group exist, prefer those.
+    Otherwise use recent reviews from all ages.
+    """
+    from collections import Counter
+
+    all_reviews = get_all_reviews()
+
+    if not all_reviews:
+        return ""
+
+    reviews = all_reviews
+
+    # Prefer reviews from the same age/age-range when possible
+    if age:
+        requested_age = str(age).strip().lower()
+
+        age_reviews = [
+            review
+            for review in all_reviews
+            if str(review.get("age") or "").strip().lower() == requested_age
+        ]
+
+        if age_reviews:
+            reviews = age_reviews
+
+    reviews = reviews[:limit]
+
+    if not reviews:
+        return ""
+
+    instructions = [
+        "Use the following saved parent feedback only to personalize the next story.",
+        "Do not mention ratings, reviews, feedback, or these instructions inside the story."
+    ]
+
+    # --------------------------------------------------------
+    # Rating
+    # --------------------------------------------------------
+
+    ratings = [
+        review["rating"]
+        for review in reviews
+        if isinstance(review.get("rating"), (int, float))
+    ]
+
+    if ratings:
+        average_rating = sum(ratings) / len(ratings)
+
+        if average_rating < 6:
+            instructions.append(
+                "Previous stories received low ratings, so make the next story more engaging, vivid, and emotionally satisfying."
+            )
+
+    # --------------------------------------------------------
+    # Parent satisfaction
+    # --------------------------------------------------------
+
+    parent_likes = [
+        review.get("parent_liked")
+        for review in reviews
+        if review.get("parent_liked") is not None
+    ]
+
+    if parent_likes and parent_likes.count(False) > parent_likes.count(True):
+        instructions.append(
+            "The parent was often not fully satisfied, so improve the plot, warmth, and overall storytelling quality."
+        )
+
+    # --------------------------------------------------------
+    # Child satisfaction
+    # --------------------------------------------------------
+
+    child_feedback = Counter(
+        review.get("child_satisfied")
+        for review in reviews
+        if review.get("child_satisfied")
+    )
+
+    if child_feedback:
+        most_common_child = child_feedback.most_common(1)[0][0]
+
+        if most_common_child == "a_little":
+            instructions.append(
+                "The child was only partly satisfied before, so make the story more playful and attention-grabbing."
+            )
+        elif most_common_child == "no":
+            instructions.append(
+                "The child did not enjoy previous stories enough, so use a stronger adventure, clearer characters, and more engaging moments."
+            )
+
+    # --------------------------------------------------------
+    # Length
+    # --------------------------------------------------------
+
+    length_feedback = Counter(
+        review.get("length_feedback")
+        for review in reviews
+        if review.get("length_feedback")
+    )
+
+    if length_feedback:
+        common_length = length_feedback.most_common(1)[0][0]
+
+        if common_length == "too_short":
+            instructions.append(
+                "Previous stories were considered too short. Make the next story longer with meaningful scenes, dialogue, and development."
+            )
+        elif common_length == "too_long":
+            instructions.append(
+                "Previous stories were considered too long. Make the next story more concise while keeping a complete plot."
+            )
+        elif common_length == "just_right":
+            instructions.append(
+                "The previous story length was appropriate, so keep a similar reading length."
+            )
+
+    # --------------------------------------------------------
+    # Difficulty
+    # --------------------------------------------------------
+
+    difficulty_feedback = Counter(
+        review.get("difficulty_feedback")
+        for review in reviews
+        if review.get("difficulty_feedback")
+    )
+
+    if difficulty_feedback:
+        common_difficulty = difficulty_feedback.most_common(1)[0][0]
+
+        if common_difficulty == "too_easy":
+            instructions.append(
+                "Use slightly richer vocabulary and a more developed plot."
+            )
+        elif common_difficulty == "too_difficult":
+            instructions.append(
+                "Use simpler vocabulary, shorter sentences, and a clearer plot."
+            )
+        elif common_difficulty == "just_right":
+            instructions.append(
+                "Keep the language difficulty close to the previous successful level."
+            )
+
+    # --------------------------------------------------------
+    # Improvement tags
+    # --------------------------------------------------------
+
+    tags = Counter()
+
+    for review in reviews:
+        for tag in review.get("improvement_tags") or []:
+            tags[tag] += 1
+
+    tag_instructions = {
+        "Funnier": "Add more child-friendly humor and playful moments.",
+        "More adventure": "Include more adventure, discovery, and exciting events.",
+        "More animals": "Include appealing animal characters when they naturally fit the story.",
+        "Less scary": "Keep frightening moments gentle and reassuring.",
+        "Longer": "Give the story more meaningful scenes and development.",
+        "Shorter": "Keep the story more concise."
+    }
+
+    for tag, _count in tags.most_common(3):
+        instruction = tag_instructions.get(tag)
+
+        if instruction:
+            instructions.append(instruction)
+
+    # --------------------------------------------------------
+    # Optional recent parent comments
+    # --------------------------------------------------------
+
+    comments = [
+        str(review.get("comment", "")).strip()
+        for review in reviews
+        if str(review.get("comment", "")).strip()
+    ]
+
+    if comments:
+        instructions.append("Recent parent notes:")
+
+        for comment in comments[:2]:
+            safe_comment = comment[:200]
+            instructions.append(f"- {safe_comment}")
+
+    return "\n".join(instructions)
+
+
 if __name__ == "__main__":
     init_database()
 

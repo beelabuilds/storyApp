@@ -148,7 +148,37 @@ def chat_endpoint(request: ChatRequest):
         )
 
     try:
-        result = generate_story(user_message)
+        # Build personalization from previous parent reviews.
+        personalized_description = user_message
+
+        try:
+            from database import build_parent_feedback_prompt
+
+            requested_age = None
+            if request.storyContext:
+                requested_age = request.storyContext.get("age")
+
+            feedback_prompt = build_parent_feedback_prompt(
+                age=requested_age
+            )
+
+            if feedback_prompt:
+                personalized_description = f"""PARENT'S NEW STORY REQUEST:
+{user_message}
+
+SAVED PARENT PREFERENCES:
+{feedback_prompt}
+
+Create the story requested by the parent while naturally applying these preferences.
+Do not mention the feedback, database, ratings, or personalization instructions in the story."""
+
+                print("Parent feedback personalization applied.")
+
+        except Exception as feedback_error:
+            # Story generation should still work even if feedback cannot be read.
+            print(f"Feedback personalization unavailable: {feedback_error}")
+
+        result = generate_story(personalized_description)
         title = result.get("title", "A New Adventure")
         content = result.get("content") or result.get("story", "")
         raw_story = result.get("story", "")
