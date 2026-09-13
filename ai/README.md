@@ -1,29 +1,53 @@
-# AI Integration Directory
+# AI Worker & Local Story Generation Engine
 
-This folder contains the integration code and Colab notebook for **Qwen3.5-9B**.
+This directory houses the core AI logic, prompt templates, and local worker process for **StoryApp**.
 
-## Notebook & Model
+## Architecture Overview
 
-- **Notebook**: [`Qwen3_5_9B_Interactive_Colab - final version.ipynb`](./Qwen3_5_9B_Interactive_Colab%20-%20final%20version.ipynb)
-- **Model**: `unsloth/Qwen3.5-9B-GGUF` (`UD-Q4_K_XL` 4-bit quant, ~6 GB)
-- **Inference**: `llama-cpp-python` with CUDA acceleration on Google Colab (T4 GPU).
-- **Thinking tags removal**: Automatically filters out `<think>...</think>` reasoning tags for direct responses.
-- **Sampling Settings**:
-  - `temperature = 0.7`
-  - `top_p = 0.8`
-  - `top_k = 20`
-  - `repeat_penalty = 1.0`
-  - `presence_penalty = 1.5`
-  - `max_tokens = 2048`
+```
+Frontend / Browser ──► FastAPI (Port 8000) ──► multiprocessing.Queue ──► Qwen Worker Process ──► Local GGUF
+                             │
+                             ▼
+                   SQLite (storyapp.db)
+```
 
-## How to Connect to Local Backend
+1. **Pure Python Execution**: No Jupyter, Colab, or ngrok required for running the demo.
+2. **Dedicated Worker Process** ([`ai/qwen_worker.py`](./qwen_worker.py)):
+   - Loads the GGUF model once at startup using `llama-cpp-python` and keeps it in memory.
+   - Listens on a Python `multiprocessing.Queue` for story generation tasks.
+   - Applies the system prompt, chat template, strips `<think>...</think>` tags, and returns the finished story.
+   - If model weights are not loaded, it generates an explicitly labeled fallback story so the thesis demo remains functional without confusion.
+3. **Lifespan Management** ([`backend/main.py`](../backend/main.py)):
+   - FastAPI's `lifespan` context manager is the single owner of the worker process and IPC queues.
+   - Manages graceful startup and shutdown upon `Ctrl+C`.
+4. **Non-Blocking IPC Dispatcher** ([`ai/qwen_ipc.py`](./qwen_ipc.py)):
+   - Uses correlation IDs and non-blocking background queue resolution (`asyncio.to_thread` / `call_soon_threadsafe`) so FastAPI's async event loop never blocks.
 
-1. Open [`Qwen3_5_9B_Interactive_Colab - final version.ipynb`](./Qwen3_5_9B_Interactive_Colab%20-%20final%20version.ipynb) in Google Colab.
-2. Select **Runtime → Change runtime type → T4 GPU**.
-3. Run the cells to load the model.
-4. Expose via ngrok / tunnel and copy your public URL.
-5. In `backend/.env`, set:
-   ```env
-   QWEN_API_URL=https://your-ngrok-url.ngrok-free.dev
-   ```
-6. Run the local backend (`python -m uvicorn main:app --reload`). The backend will automatically detect and route story generations directly through the Qwen3.5-9B Colab instance. If unreachable, it gracefully falls back to the rich local engine.
+## How to Run the Demo
+
+From the project root:
+
+```bash
+python run_app.py
+```
+
+Then open your browser to:
+👉 **`http://localhost:8000`**
+
+- **Web Demo Studio**: Generate personalized stories, select ages (4–5, 6–8), and choose hero archetypes.
+- **SQLite Bookshelf & Reviews**: Rate stories (1–10) and submit feedback. All reviews are stored in `backend/storyapp.db` and automatically personalize subsequent story prompts.
+- **API Documentation**: Available at `http://localhost:8000/docs`.
+
+## Model Configuration (Optional)
+
+By default, the worker searches for any `.gguf` file in `models/`, `ai/models/`, or the Hugging Face cache.
+
+To point to a specific local model:
+```env
+# In .env or shell environment
+QWEN_MODEL_PATH="C:/path/to/qwen-model.gguf"
+```
+
+## Notebooks
+
+- [`Qwen3_5_9B_Story_Generator_Colab_with_API_updated.ipynb`](./Qwen3_5_9B_Story_Generator_Colab_with_API_updated.ipynb): Retained solely for testing and remote experiments. It is **not** required for running the local demo.

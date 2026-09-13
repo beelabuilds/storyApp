@@ -1,72 +1,43 @@
-import os
-import requests
-from pathlib import Path
-from typing import Dict, Any
+"""Internal IPC integration module connecting story generation to the Qwen worker process.
 
-try:
-    from dotenv import load_dotenv
-    # Load from backend/.env or root .env
-    backend_env = Path(__file__).resolve().parent.parent / "backend" / ".env"
-    root_env = Path(__file__).resolve().parent.parent / ".env"
-    if backend_env.exists():
-        load_dotenv(backend_env)
-    elif root_env.exists():
-        load_dotenv(root_env)
-    else:
-        load_dotenv()
-except ImportError:
-    pass
+Replaces the previous HTTP/ngrok client with direct in-memory multiprocessing IPC.
+"""
 
-
-def get_qwen_api_url() -> str:
-    """Get the currently configured Qwen API base URL."""
-    return os.getenv("QWEN_API_URL", "").strip().rstrip("/")
+from typing import Dict, Any, Optional
+from ai.qwen_ipc import qwen_manager
 
 
 def is_qwen_available() -> bool:
-    """Check whether the Colab Qwen API is reachable."""
-    api_url = get_qwen_api_url()
-    if not api_url:
-        return False
-
-    try:
-        response = requests.get(
-            f"{api_url}/health",
-            timeout=5
-        )
-        return response.status_code == 200
-    except requests.RequestException:
-        return False
+    """Check whether the internal Qwen worker process is active."""
+    return qwen_manager.is_alive()
 
 
-def generate_story_with_qwen(description: str) -> Dict[str, Any]:
-    """
-    Send the parent's natural-language description to the
-    Qwen3.5-9B story generator running on Colab.
-    """
-    api_url = get_qwen_api_url()
-
-    if not api_url:
-        raise ValueError(
-            "QWEN_API_URL environment variable is not configured."
-        )
-
+async def generate_story_with_qwen(
+    description: str,
+    age: Optional[str] = None,
+    hero: Optional[str] = None,
+    feedback_prompt: Optional[str] = None,
+    max_tokens: int = 650,
+) -> Dict[str, Any]:
+    """Generate a story by dispatching parameters to the local Qwen worker via IPC."""
     if not description or not description.strip():
         raise ValueError("Story description cannot be empty.")
 
-    response = requests.post(
-        f"{api_url}/generate-story",
-        json={
-            "description": description.strip()
-        },
-        timeout=120
+    result = await qwen_manager.generate_story(
+        description=description.strip(),
+        age=age,
+        hero=hero,
+        feedback_prompt=feedback_prompt,
+        max_tokens=max_tokens,
     )
 
-    response.raise_for_status()
-
-    data = response.json()
+    if not result.get("success", False):
+        error_msg = result.get("error", "Unknown error during story generation.")
+        raise RuntimeError(error_msg)
 
     return {
-        "story": data.get("story", ""),
-        "engine": "Qwen3.5-9B (Colab)"
+        "story": result.get("story", ""),
+        "raw": result.get("raw", ""),
+        "engine": result.get("engine", "Qwen Local GGUF"),
+        "is_fallback": result.get("is_fallback", False),
     }
