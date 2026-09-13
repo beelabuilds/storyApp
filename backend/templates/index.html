@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Story Assistant — StoryApp</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Spline+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body class="theme-light">
+  <div class="screen-frame">
+
+    <!-- ======================================================== -->
+    <!-- TAB 1: STORY ASSISTANT CHAT SCREEN (from index.tsx)     -->
+    <!-- ======================================================== -->
+    <div id="screenChat" class="app-screen active">
+      <!-- Top Header -->
+      <header class="app-header">
+        <div class="header-info">
+          <h1 class="header-title">Story Assistant</h1>
+          <p class="header-subtitle">Personalized stories for little readers</p>
+        </div>
+        <div class="header-actions">
+          <button type="button" class="icon-btn theme-toggle-btn" id="btnToggleTheme" aria-label="Toggle theme">
+            <span class="icon-glyph" id="themeIcon">☾</span>
+          </button>
+          <button type="button" class="icon-btn" id="btnNewChat" aria-label="Start new story chat">
+            <span class="icon-glyph">+</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- Messages Scroll Area -->
+      <main class="chat-scroll-area" id="chatScrollArea">
+        <div class="messages-container" id="messagesContainer">
+          <!-- Empty welcome banner (if <= 1 message) -->
+          <div class="empty-welcome" id="emptyWelcomeBanner">
+            <h2 class="welcome-title">Create a story together </h2>
+            <p class="welcome-subtitle">Tell me about your child's day, imagination, or something you'd like them to
+              learn.</p>
+          </div>
+
+          <!-- Message list injected dynamically -->
+        </div>
+
+        <!-- Thinking indicator -->
+        <div class="thinking-indicator hidden" id="thinkingIndicator">
+          <span>Writing something wonderful...</span>
+        </div>
+      </main>
+
+      <!-- Composer Bar -->
+      <footer class="composer-container">
+        <div class="composer-bar">
+          <textarea id="chatInput" rows="1" placeholder="Type your answer or request a story..."
+            class="composer-input"></textarea>
+          <button type="button" class="send-btn" id="btnSendMessage" aria-label="Send message">
+            ↑
+          </button>
+        </div>
+      </footer>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- TAB 2: BOOKSHELF SCREEN (from explore.tsx)               -->
+    <!-- ======================================================== -->
+    <div id="screenBookshelf" class="app-screen">
+      <!-- Bookshelf Library View -->
+      <div id="bookshelfLibraryView">
+        <header class="library-header">
+          <div class="header-top-row">
+            <div>
+              <span class="kicker">YOUR LIBRARY</span>
+              <h1 class="library-title">Saved Stories</h1>
+            </div>
+            <div class="header-actions">
+              <button type="button" class="icon-btn theme-toggle-btn" id="btnToggleThemeLibrary"
+                aria-label="Toggle theme">
+                <span class="icon-glyph" id="themeIconLib">☾</span>
+              </button>
+            </div>
+          </div>
+          <p class="library-subtitle">All stories are kept safely on your device.</p>
+
+          <!-- Filter buttons -->
+          <div class="filter-row" id="filterRow">
+            <button type="button" class="filter-btn active" id="btnFilterAll">All</button>
+            <button type="button" class="filter-btn" id="btnFilterFavorites">♥ Favorites</button>
+          </div>
+        </header>
+
+        <main class="library-content" id="libraryContentArea">
+          <!-- Books Grid or Empty State -->
+          <div class="books-grid" id="booksGrid"></div>
+          <div class="empty-bookshelf hidden" id="emptyBookshelfState">
+            <span class="empty-emoji"></span>
+            <h3 class="empty-title">Your bookshelf is empty</h3>
+            <p class="empty-subtitle">Your first adventure is waiting.</p>
+            <button type="button" class="reader-action-btn" id="btnEmptyCreate">
+              Create your first story
+            </button>
+          </div>
+        </main>
+      </div>
+
+      <!-- Full Reader View (when activeStory is selected) -->
+      <div id="bookshelfReaderView" class="hidden">
+        <div class="reader-toolbar">
+          <button type="button" class="tool-btn" id="btnBackToLibrary">
+            ← Back to Stories
+          </button>
+          <div class="toolbar-actions">
+            <button type="button" class="tool-btn" id="btnReaderFavorite">
+              <span class="fav-icon" id="readerFavIcon">♡</span>
+            </button>
+            <button type="button" class="tool-btn" id="btnReaderMenu">
+              •••
+            </button>
+          </div>
+        </div>
+
+        <div class="reader-scroll-content">
+          <h1 class="reader-title" id="readerTitle">A Gentle Adventure</h1>
+          <p class="reader-meta" id="readerMeta" style="display:none;"></p>
+          <div class="reader-divider"></div>
+
+          <!-- Fallback badge if applicable -->
+          <div class="fallback-pill hidden" id="readerFallbackBadge">
+            ⚠️ Fallback Engine (Local Qwen GGUF Not Loaded)
+          </div>
+
+          <div class="reader-story-body" id="readerStoryBody">
+            <!-- Story paragraphs injected here -->
+          </div>
+
+          <!-- Favorite Button -->
+          <button type="button" class="reader-action-btn" id="btnReaderActionFavorite">
+            ♡ Add to Favorites
+          </button>
+
+          <!-- Parent Review Toggle Button -->
+          <button type="button" class="review-toggle-btn" id="btnToggleReviewCard">
+            Review this story
+          </button>
+
+          <!-- Embedded Parent Review Card (from explore.tsx styles.reviewCard) -->
+          <div class="review-card hidden" id="readerReviewCard">
+            <h3 class="review-title">How was this story?</h3>
+            <p class="review-subtitle">Tell us what you and your child thought.</p>
+
+            <label class="question-label">Rate this story from 1 to 10</label>
+            <div class="rating-row" id="ratingRow">
+              <!-- 1 to 10 buttons -->
+            </div>
+
+            <label class="question-label">Did you like the story?</label>
+            <div class="option-row" id="parentLikedRow">
+              <button type="button" class="option-btn" data-val="true">Yes</button>
+              <button type="button" class="option-btn" data-val="false">Not really</button>
+            </div>
+
+            <label class="question-label">Did your child enjoy the story?</label>
+            <div class="option-row" id="childSatisfiedRow">
+              <button type="button" class="option-btn" data-val="yes">Yes</button>
+              <button type="button" class="option-btn" data-val="a_little">A little</button>
+              <button type="button" class="option-btn" data-val="no">No</button>
+            </div>
+
+            <label class="question-label">Was the story length right?</label>
+            <div class="option-row" id="lengthFeedbackRow">
+              <button type="button" class="option-btn" data-val="too_short">Too short</button>
+              <button type="button" class="option-btn active" data-val="just_right">Just right</button>
+              <button type="button" class="option-btn" data-val="too_long">Too long</button>
+            </div>
+
+            <label class="question-label">How was the reading difficulty?</label>
+            <div class="option-row" id="difficultyFeedbackRow">
+              <button type="button" class="option-btn" data-val="too_easy">Too easy</button>
+              <button type="button" class="option-btn active" data-val="just_right">Just right</button>
+              <button type="button" class="option-btn" data-val="too_difficult">Too difficult</button>
+            </div>
+
+            <label class="question-label">What would make the next story better?</label>
+            <div class="tags-row" id="improvementTagsRow">
+              <button type="button" class="tag-btn" data-tag="Funnier">Funnier</button>
+              <button type="button" class="tag-btn" data-tag="More adventure">More adventure</button>
+              <button type="button" class="tag-btn" data-tag="More animals">More animals</button>
+              <button type="button" class="tag-btn" data-tag="Less scary">Less scary</button>
+              <button type="button" class="tag-btn" data-tag="Longer">Longer</button>
+              <button type="button" class="tag-btn" data-tag="Shorter">Shorter</button>
+            </div>
+
+            <label class="question-label">Anything else?</label>
+            <textarea id="reviewCommentInput" rows="3" class="comment-input"
+              placeholder="Optional comment..."></textarea>
+
+            <div class="review-error hidden" id="reviewErrorMsg"></div>
+            <div class="review-success hidden" id="reviewSuccessMsg">Review saved ✓</div>
+
+            <button type="button" class="save-review-btn" id="btnSaveReview">
+              Save Review
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- BOTTOM NAVIGATION TABS (from app-tabs.tsx)               -->
+    <!-- ======================================================== -->
+    <nav class="bottom-tab-bar" id="bottomTabBar">
+      <button type="button" class="tab-item active" id="tabNavAssistant">
+        <span class="tab-label">Story Assistant</span>
+      </button>
+      <button type="button" class="tab-item" id="tabNavBookshelf">
+        <span class="tab-label">Saved Stories</span>
+      </button>
+    </nav>
+
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+
+</html>

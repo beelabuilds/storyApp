@@ -1,0 +1,978 @@
+/* ========================================================
+   StoryApp Expo Theme Colors & Fonts
+   Reference: frontend/src/constants/theme.ts & global.css
+   ======================================================== */
+
+:root {
+  --font-display: 'Spline Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-serif: Georgia, 'Times New Roman', serif;
+}
+
+body.theme-light {
+  --text: #211B3A;
+  --text-primary: #211B3A;
+  --background: #F7F1E5;
+  --background-element: #FFFFFF;
+  --background-selected: #FFF0B8;
+  --text-secondary: #756D83;
+  --surface: #FFFFFF;
+  --surface-elevated: #FFFFFF;
+  --accent: #F4D36A;
+  --accent-text: #211B3A;
+  --border: #DED7E5;
+  --input-background: #FFFFFF;
+  --tab-inactive: #8F879B;
+  --shadow-color: rgba(33, 27, 58, 0.08);
+}
+
+body.theme-dark {
+  --text: #FFF9E8;
+  --text-primary: #FFF9E8;
+  --background: #17152C;
+  --background-element: #25213D;
+  --background-selected: #302B4C;
+  --text-secondary: #B9B4C8;
+  --surface: #25213D;
+  --surface-elevated: #302B4C;
+  --accent: #F7D77A;
+  --accent-text: #17152C;
+  --border: #403A5A;
+  --input-background: #25213D;
+  --tab-inactive: #9B94AA;
+  --shadow-color: rgba(0, 0, 0, 0.25);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-family: var(--font-display);
+  background-color: var(--background);
+  color: var(--text-primary);
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+/* ========================================================
+   Main Centered Container (from safeArea in index.tsx)
+   maxWidth: 520, width: '100%', alignSelf: 'center'
+   ======================================================== */
+
+.screen-frame {
+  max-width: 520px;
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background-color: var(--background);
+  padding: 0 20px 88px;
+  /* 88px padding bottom for bottom tab bar */
+}
+
+/* Screen visibility */
+.app-screen {
+  display: none;
+  flex-direction: column;
+  flex: 1;
+}
+
+.app-screen.active {
+  display: flex;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* ========================================================
+   Header (from styles.header in index.tsx)
+   ======================================================== */
+
+.app-header {
+  min-height: 64px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 14px;
+  margin-bottom: 4px;
+}
+
+.header-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.2px;
+}
+
+.header-subtitle {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.header-actions {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+}
+
+.icon-btn {
+  width: 42px;
+  height: 42px;
+  border-radius: 21px;
+  border: 1px solid var(--border);
+  background-color: var(--surface-elevated);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.15s ease, background-color 0.2s ease;
+  box-shadow: 0 2px 6px var(--shadow-color);
+}
+
+.icon-btn:active {
+  transform: scale(0.94);
+}
+
+.icon-glyph {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+/* ========================================================
+   Chat Messages Area (from styles.messages in index.tsx)
+   ======================================================== */
+
+.chat-scroll-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding-top: 14px;
+  padding-bottom: 14px;
+}
+
+.messages-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Empty Welcome (from styles.emptyWelcome) */
+.empty-welcome {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 50px 20px 30px;
+}
+
+.welcome-title {
+  font-size: 28px;
+  line-height: 34px;
+  font-weight: 800;
+  color: var(--text-primary);
+  text-align: center;
+}
+
+.welcome-subtitle {
+  text-align: center;
+  font-size: 15px;
+  line-height: 22px;
+  color: var(--text-secondary);
+  margin-top: 10px;
+  max-width: 380px;
+}
+
+/* Message Blocks (from styles.messageBlock & styles.userBlock) */
+.message-block {
+  align-self: flex-start;
+  max-width: 92%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.message-block.user-block {
+  align-self: flex-end;
+  align-items: flex-end;
+}
+
+.assistant-text {
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+}
+
+.user-bubble {
+  padding: 10px 16px;
+  border-radius: 20px;
+  font-size: 16px;
+  line-height: 22px;
+  font-weight: 600;
+  background-color: var(--accent);
+  color: var(--accent-text);
+  word-break: break-word;
+}
+
+/* Interactive Chips (from styles.chips & styles.chip) */
+.chips-group {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.chip {
+  border-radius: 18px;
+  padding: 9px 14px;
+  background-color: var(--surface-elevated);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 4px var(--shadow-color);
+}
+
+.chip:hover {
+  background-color: var(--background-selected);
+  border-color: var(--accent);
+}
+
+.chip:active {
+  transform: scale(0.96);
+}
+
+/* Story Card inside Chat (from styles.storyCard) */
+.story-card {
+  border-radius: 22px;
+  padding: 20px;
+  background-color: var(--surface-elevated);
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+  box-shadow: 0 4px 14px var(--shadow-color);
+}
+
+.story-eyebrow {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  color: var(--accent);
+  text-transform: uppercase;
+}
+
+.story-title {
+  font-size: 26px;
+  line-height: 32px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.story-meta {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.story-preview {
+  font-size: 16px;
+  line-height: 26px;
+  color: var(--text-primary);
+  margin-top: 6px;
+  white-space: pre-wrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 5;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.story-actions {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.read-button {
+  flex: 1;
+  min-height: 48px;
+  border-radius: 16px;
+  border: none;
+  background-color: var(--accent);
+  color: var(--accent-text);
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 800;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.read-button:hover {
+  opacity: 0.95;
+}
+
+.read-button:active {
+  transform: scale(0.98);
+}
+
+.bookmark-button {
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background-color: var(--background-element);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+  transition: all 0.15s ease;
+}
+
+.bookmark-button.active {
+  color: #FF4D6D;
+}
+
+/* Thinking Indicator (from styles.thinking) */
+.thinking-indicator {
+  font-size: 14px;
+  font-style: italic;
+  color: var(--text-secondary);
+  margin: 10px 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ========================================================
+   Composer (from styles.composer in index.tsx)
+   ======================================================== */
+
+.composer-container {
+  position: sticky;
+  bottom: 0;
+  padding-top: 6px;
+  background-color: var(--background);
+}
+
+.composer-bar {
+  min-height: 60px;
+  border-radius: 22px;
+  border: 1px solid var(--border);
+  background-color: var(--surface-elevated);
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+  gap: 8px;
+  box-shadow: 0 4px 16px var(--shadow-color);
+}
+
+.composer-input {
+  flex: 1;
+  padding: 10px 14px;
+  max-height: 110px;
+  font-size: 16px;
+  font-family: var(--font-display);
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  resize: none;
+  line-height: 22px;
+}
+
+.composer-input::placeholder {
+  color: var(--text-secondary);
+}
+
+.send-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 16px;
+  border: none;
+  background-color: var(--accent);
+  color: var(--accent-text);
+  font-size: 18px;
+  font-weight: 900;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.send-btn:hover {
+  opacity: 0.95;
+}
+
+.send-btn:active {
+  transform: scale(0.92);
+}
+
+.send-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ========================================================
+   TAB 2: BOOKSHELF & LIBRARY (from explore.tsx)
+   ======================================================== */
+
+.library-header {
+  padding-top: 14px;
+  margin-bottom: 16px;
+}
+
+.header-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.kicker {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  color: var(--accent);
+  text-transform: uppercase;
+}
+
+.library-title {
+  font-size: 32px;
+  line-height: 38px;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-top: 2px;
+}
+
+.library-subtitle {
+  font-size: 15px;
+  line-height: 22px;
+  color: var(--text-secondary);
+  margin: 6px 0 16px;
+}
+
+.filter-row {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.filter-btn {
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background-color: var(--surface-elevated);
+  color: var(--text-secondary);
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.filter-btn.active {
+  background-color: var(--accent);
+  color: var(--accent-text);
+  border-color: var(--accent);
+}
+
+.books-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.book-card {
+  border-radius: 22px;
+  padding: 14px;
+  background-color: var(--surface-elevated);
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px var(--shadow-color);
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.book-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+}
+
+.book-cover {
+  height: 150px;
+  border-radius: 18px;
+  background-color: var(--background-element);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.book-emoji {
+  font-size: 58px;
+}
+
+.cover-label {
+  position: absolute;
+  bottom: 12px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  color: var(--accent);
+}
+
+.card-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.book-title {
+  flex: 1;
+  font-size: 18px;
+  line-height: 22px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.favorite-text {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.favorite-text.is-fav {
+  color: #FF4D6D;
+}
+
+.empty-bookshelf {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 80px 20px;
+  gap: 8px;
+  text-align: center;
+}
+
+.empty-emoji {
+  font-size: 42px;
+  color: var(--accent);
+}
+
+.empty-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.empty-subtitle {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+}
+
+.delete-story {
+  background: none;
+  border: none;
+  color: red;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.delete-story:hover {
+  transform: scale(1.1);
+}
+
+/* ========================================================
+   READER VIEW (from explore.tsx readerContent)
+   ======================================================== */
+
+.reader-toolbar {
+  width: 100%;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-top: 14px;
+}
+
+.toolbar-actions {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+}
+
+.tool-btn {
+  min-height: 42px;
+  padding: 0 14px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background-color: var(--surface-elevated);
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s ease;
+}
+
+.tool-btn:active {
+  transform: scale(0.96);
+}
+
+.reader-scroll-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-bottom: 30px;
+}
+
+.reader-title {
+  font-size: 32px;
+  line-height: 38px;
+  font-weight: 800;
+  text-align: center;
+  color: var(--text-primary);
+  margin-top: 12px;
+}
+
+.reader-meta {
+  font-size: 14px;
+  text-align: center;
+  color: var(--text-secondary);
+  margin-top: 6px;
+}
+
+.reader-divider {
+  width: 48px;
+  height: 2px;
+  background-color: var(--accent);
+  margin: 24px 0;
+}
+
+.fallback-pill {
+  background-color: rgba(245, 158, 11, 0.15);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  padding: 6px 14px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 18px;
+}
+
+.reader-story-body {
+  width: 100%;
+  font-family: var(--font-serif);
+  font-size: 19px;
+  line-height: 31px;
+  color: var(--text-primary);
+}
+
+.reader-story-body p {
+  margin-bottom: 18px;
+}
+
+.reader-action-btn {
+  width: 100%;
+  min-height: 54px;
+  border-radius: 18px;
+  border: none;
+  background-color: var(--accent);
+  color: var(--accent-text);
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 800;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 28px;
+  margin-bottom: 12px;
+  transition: transform 0.15s ease;
+}
+
+.reader-action-btn:active {
+  transform: scale(0.98);
+}
+
+.review-toggle-btn {
+  width: 100%;
+  min-height: 50px;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background-color: var(--surface-elevated);
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 800;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 4px;
+  transition: background-color 0.2s ease;
+}
+
+/* ========================================================
+   PARENT REVIEW CARD (from explore.tsx reviewCard)
+   ======================================================== */
+
+.review-card {
+  width: 100%;
+  border-radius: 24px;
+  border: 1px solid var(--border);
+  background-color: var(--surface-elevated);
+  padding: 18px;
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 4px 16px var(--shadow-color);
+}
+
+.review-title {
+  font-size: 24px;
+  line-height: 30px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.review-subtitle {
+  font-size: 14px;
+  line-height: 21px;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.question-label {
+  font-size: 15px;
+  line-height: 20px;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-top: 8px;
+}
+
+.rating-row {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.rating-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background-color: var(--background-element);
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.rating-btn.active {
+  background-color: var(--accent);
+  color: var(--accent-text);
+  border-color: var(--accent);
+}
+
+.option-row {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.option-btn {
+  min-height: 42px;
+  padding: 0 14px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background-color: var(--background-element);
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.option-btn.active {
+  background-color: var(--accent);
+  color: var(--accent-text);
+  border-color: var(--accent);
+}
+
+.tags-row {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tag-btn {
+  min-height: 40px;
+  padding: 0 13px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background-color: var(--background-element);
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.tag-btn.active {
+  background-color: var(--accent);
+  color: var(--accent-text);
+  border-color: var(--accent);
+}
+
+.comment-input {
+  min-height: 96px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background-color: var(--background-element);
+  color: var(--text-primary);
+  padding: 12px 14px;
+  font-size: 15px;
+  line-height: 21px;
+  font-family: var(--font-display);
+  outline: none;
+  resize: vertical;
+}
+
+.comment-input::placeholder {
+  color: var(--text-secondary);
+}
+
+.save-review-btn {
+  min-height: 52px;
+  border-radius: 17px;
+  border: none;
+  background-color: var(--accent);
+  color: var(--accent-text);
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 800;
+  cursor: pointer;
+  margin-top: 6px;
+  transition: transform 0.15s ease;
+}
+
+.save-review-btn:active {
+  transform: scale(0.98);
+}
+
+.review-success {
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.review-error {
+  color: #D64545;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+/* ========================================================
+   BOTTOM NAVIGATION TAB BAR (from app-tabs.tsx)
+   ======================================================== */
+
+.bottom-tab-bar {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 520px;
+  width: 100%;
+  height: 64px;
+  background-color: var(--background);
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-around;
+  z-index: 50;
+  backdrop-filter: blur(10px);
+}
+
+.tab-item {
+  flex: 1;
+  height: 100%;
+  background: transparent;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  cursor: pointer;
+  color: var(--tab-inactive);
+  font-family: var(--font-display);
+  transition: color 0.15s ease;
+}
+
+.tab-item.active {
+  color: var(--text-primary);
+}
+
+.tab-icon {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.tab-label {
+  font-size: 11px;
+  font-weight: 700;
+}
